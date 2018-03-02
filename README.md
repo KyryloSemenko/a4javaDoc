@@ -1,2 +1,4 @@
 # a4javaDoc
-It helps to better understand how java applications work
+It should help to better understand how java applications work
+
+I was inspired by http://findtheflow.io/
