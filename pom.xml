@@ -1,0 +1,14 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>org.apache.a4javadoc</groupId>
+  <artifactId>a4javadoc-javassist</artifactId>
+  <version>0.0.1-SNAPSHOT</version>
+  <name>The a4javaDoc Javassist Module</name>
+  <description>Runnable jar for data collection of running applications.</description>
+  <url>https://github.com/KyryloSemenko/a4javaDoc</url>
+  <scm>
+  	<connection>scm:git:git://github.com/KyryloSemenko/a4javaDoc.git</connection>
+  	<url>https://github.com/KyryloSemenko/a4javaDoc</url>
+  	<developerConnection>scm:git:git@github.com:KyryloSemenko/a4javaDoc.git</developerConnection>
+  </scm>
+</project>
