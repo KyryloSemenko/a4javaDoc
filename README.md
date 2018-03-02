@@ -1,4 +1,7 @@
 # a4javaDoc
-It should help to better understand how java applications work
 
-I was inspired by http://findtheflow.io/
+The project was inspired by excellent http://findtheflow.io/
+
+It should help to better understand how java applications work.
+
+The project has not yet been released and work is in progress.
