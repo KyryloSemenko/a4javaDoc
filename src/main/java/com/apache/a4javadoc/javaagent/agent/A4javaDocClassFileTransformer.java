@@ -43,7 +43,7 @@ public class A4javaDocClassFileTransformer implements ClassFileTransformer {
     public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined, ProtectionDomain protectionDomain, byte[] classfileBuffer) throws IllegalClassFormatException {
         String javaClassName = className.replaceAll(PACKAGE_SEPARATOR_PATH, PACKAGE_SEPARATOR_JAVA);
         if (startsWith(javaClassName, includePackages) && !startsWith(javaClassName, excludePackages)) {
-            logger.info("Match: '{}'", javaClassName);
+            logger.info("Matched: '{}'", javaClassName);
         }
         return classfileBuffer;
     }
@@ -51,7 +51,7 @@ public class A4javaDocClassFileTransformer implements ClassFileTransformer {
     /** @return true if the first parameter value starts with one of Strings from the set from the second parameter. */
     private boolean startsWith(String javaClassName, Set<String> set) {
         for (String next : set) {
-            if (next.startsWith(javaClassName)) {
+            if (javaClassName.startsWith(next)) {
                 return true;
             }
         }
