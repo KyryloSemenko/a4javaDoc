@@ -1,46 +1,54 @@
 package com.apache.a4javadoc.javaagent.agent;
 
 import java.lang.instrument.Instrumentation;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
 
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Configuration;
+
+import net.bytebuddy.agent.builder.AgentBuilder;
+import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.dynamic.DynamicType.Builder;
+import net.bytebuddy.implementation.MethodDelegation;
+import net.bytebuddy.matcher.ElementMatchers;
+import net.bytebuddy.utility.JavaModule;
 
 /**
  * Javaagent. It contains the {@link #premain(String, Instrumentation)} method. See mechanism described in the {@link Instrumentation}.<br>
  * The class also contains the {@link #main(String[])} method. 
  * @author Kyrylo Semenko
  */
+@Configuration
+@EnableAutoConfiguration
+@ComponentScan("com.apache.a4javadoc.javaagent")
 public class Agent {
-    static final String JVM_ARG_EXCLUDE_PACKAGES = "excludePackages";
-    static final String JVM_ARG_INCLUDE_PACKAGES = "includePackages";
-    private static final String PACKAGES_SEPARATOR = ",";
     private static final Logger logger = LoggerFactory.getLogger(Agent.class);
 
     /**
-     * Instantiate the {@link A4javaDocClassFileTransformer} and add it to the {@link Instrumentation}.
+     * Obtains a {@link MethodInterceptor} instance from the Spring container and add it to the {@link Instrumentation}.
+     * @param args not used
+     * @param instrumentation see the {@link Instrumentation} javaDoc
      */
     public static void premain(String args, Instrumentation instrumentation) {
-        logger.info("args: '{}'", args);
-        
-        String includePackagesString = System.getProperty(JVM_ARG_INCLUDE_PACKAGES);
-        logger.info("-DincludePackages: '{}'", includePackagesString);
-        Set<String> includePackages = new HashSet<String>();
-        if (includePackagesString != null) {
-            includePackages = new HashSet<String>(Arrays.asList(includePackagesString.split(PACKAGES_SEPARATOR)));
+        if (args == null) {
+            args = StringUtils.EMPTY;
         }
+        final ApplicationContext context = SpringApplication.run(Agent.class, args);
         
-        String excludePackagesString = System.getProperty(JVM_ARG_EXCLUDE_PACKAGES);
-        logger.info("-DexcludePackages: '{}'", excludePackagesString);
-        Set<String> excludePackages = new HashSet<String>();
-        if (excludePackagesString != null) {
-            excludePackages = new HashSet<String>(Arrays.asList(excludePackagesString.split(PACKAGES_SEPARATOR)));
-        }
-        
-        A4javaDocClassFileTransformer transformer = new A4javaDocClassFileTransformer(includePackages, excludePackages);
-        instrumentation.addTransformer(transformer);
+        new AgentBuilder.Default()
+        .type(context.getBean(CustomRawMatcher.class))
+        .transform(new AgentBuilder.Transformer() {
+            public Builder<?> transform(Builder<?> builder, TypeDescription typeDescription, ClassLoader classLoader, JavaModule module) {
+                return builder.method(ElementMatchers.not(ElementMatchers.isDeclaredBy(Object.class)))
+                        .intercept(MethodDelegation.to(context.getBean(MethodInterceptor.class)));
+            }
+        })
+        .installOn(instrumentation);
     }
     
     /**
