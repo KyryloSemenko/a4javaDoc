@@ -27,9 +27,10 @@ public class MethodInterceptor {
     
     private List<MethodStateRecorder> recorders;
     
-    /**  */
+    /** TODO Kyrylo Semenko */
     public MethodInterceptor() {
         callCounter = new AtomicLong(0L);
+        logger.info("Construction of MethodInterceptor started. callCounter: '{}'", callCounter.get());
         // create the plugin manager
         final PluginManager pluginManager = new DefaultPluginManager();
 
@@ -42,7 +43,7 @@ public class MethodInterceptor {
         // retrieves the extensions for Greeting extension point
         recorders = pluginManager.getExtensions(MethodStateRecorder.class);
         // TODO Kyrylo Semenko
-        recorders.remove(1);
+//        recorders.remove(1);
         logger.info(String.format("Found %d extensions for extension point '%s'", recorders.size(), MethodStateRecorder.class.getName()));
     }
     
