@@ -31,6 +31,7 @@
 
     <properties>
         <a4javadoc.version>0.0.1</a4javadoc.version>
+        <slf4j-api.version>1.7.25</slf4j-api.version>
         <maven.compiler.source>1.7</maven.compiler.source>
         <maven.compiler.target>1.7</maven.compiler.target>
         <pf4j.version>2.2.0</pf4j.version>
@@ -46,6 +47,7 @@
         <module>a4javadoc-javaagent</module>
         <module>a4javadoc-javaagent-api</module>
         <module>a4javadoc-plugins</module>
+        <module>a4javadoc-common</module>
     </modules>
     
     <dependencies>

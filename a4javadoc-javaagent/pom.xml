@@ -15,6 +15,11 @@
     <dependencies>
         <dependency>
             <groupId>org.apache.a4javadoc</groupId>
+            <artifactId>a4javadoc-common</artifactId>
+            <version>${a4javadoc.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.a4javadoc</groupId>
             <artifactId>a4javadoc-javaagent-api</artifactId>
             <version>${a4javadoc.version}</version>
         </dependency>

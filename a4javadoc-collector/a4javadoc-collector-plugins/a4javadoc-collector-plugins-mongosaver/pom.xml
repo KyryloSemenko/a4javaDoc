@@ -1,0 +1,62 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>org.apache.a4javadoc</groupId>
+        <artifactId>a4javadoc-collector-plugins</artifactId>
+        <version>0.0.1</version>
+    </parent>
+    <artifactId>a4javadoc-collector-plugins-mongosaver</artifactId>
+    <packaging>jar</packaging>
+    <name>${project.artifactId}</name>
+    <description>Saves collected data to a MongoDB.</description>
+
+    <properties>
+        <plugin.id>${project.artifactId}</plugin.id>
+        <plugin.class>com.apache.a4javadoc.collector.plugin.Plugin</plugin.class>
+        <plugin.version>0.0.1</plugin.version>
+        <plugin.provider>a4javadoc</plugin.provider>
+        <plugin.dependencies />
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>1.5.10.RELEASE</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+        
+    <dependencies>
+        <dependency>
+            <groupId>org.pf4j</groupId>
+            <artifactId>pf4j</artifactId>
+            <version>${pf4j.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+            <version>3.7</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+    
+</project>

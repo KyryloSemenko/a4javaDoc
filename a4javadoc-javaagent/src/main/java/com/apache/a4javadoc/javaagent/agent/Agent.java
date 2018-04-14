@@ -10,7 +10,7 @@ import org.pf4j.AbstractPluginManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.apache.a4javadoc.javaagent.exception.AppRuntimeException;
+import com.apache.a4javadoc.exception.AppRuntimeException;
 
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.description.method.MethodDescription;

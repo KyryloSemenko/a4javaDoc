@@ -4,7 +4,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
 
-import com.apache.a4javadoc.javaagent.exception.AppRuntimeException;
+import com.apache.a4javadoc.exception.AppRuntimeException;
 
 /** 
  * @author Kyrylo Semenko

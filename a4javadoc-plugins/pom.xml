@@ -33,6 +33,14 @@
             </plugin>
         </plugins>
     </build>
+    
+    <dependencies>
+        <dependency>
+            <groupId>org.apache.a4javadoc</groupId>
+            <artifactId>a4javadoc-common</artifactId>
+            <version>${a4javadoc.version}</version>
+        </dependency>
+    </dependencies>
 
     <modules>
         <module>a4javadoc-plugins-recorder</module>
