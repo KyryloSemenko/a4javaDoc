@@ -16,19 +16,19 @@ import net.bytebuddy.utility.JavaModule;
  */
 public class CustomClassesMatcher implements RawMatcher {
     private static final Logger logger = LoggerFactory.getLogger(CustomClassesMatcher.class);
-    /**  */
+    
+    /** En empty constructor with a log message */
     public CustomClassesMatcher() {
-        // TODO Auto-generated constructor stub
         logger.info("Construction of CustomClassesMatcher started");
     }
 
     /** 
-     * Filters classes defined in -DincludePackages and -DexcludePackages.
+     * Filters classes defined in {@link SystemParametersService#getIncludeNames()} and {@link SystemParametersService#getExcludePackages()} methods
      * @see net.bytebuddy.agent.builder.AgentBuilder.RawMatcher#matches(net.bytebuddy.description.type.TypeDescription, java.lang.ClassLoader, net.bytebuddy.utility.JavaModule, java.lang.Class, java.security.ProtectionDomain)
      */
     public boolean matches(TypeDescription typeDescription, ClassLoader classLoader, JavaModule module, Class<?> classBeingRedefined, ProtectionDomain protectionDomain) {
         
-        boolean result = startsWith(typeDescription.getName(), SystemParametersService.getInstance().getIncludePackages())
+        boolean result = startsWith(typeDescription.getName(), SystemParametersService.getInstance().getIncludeNames())
                 && !startsWith(typeDescription.getName(), SystemParametersService.getInstance().getExcludePackages());
         
         if (logger.isDebugEnabled() && result) {

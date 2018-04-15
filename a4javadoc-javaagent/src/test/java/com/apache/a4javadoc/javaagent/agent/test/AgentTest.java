@@ -18,7 +18,7 @@ public class AgentTest {
 
     /**
      * This test should be started with parameters:<br>
-     * <code>-javaagent:target\a4javadoc-javaagent-0.0.1-SNAPSHOT.jar -DincludePackages=com.apache.a4javadoc</code>
+     * <code>-javaagent:target\a4javadoc-javaagent-0.0.1-SNAPSHOT.jar -Da4javadoc.include=*a4javadoc*test</code>
      */
     @Test
     public void test() throws InterruptedException {

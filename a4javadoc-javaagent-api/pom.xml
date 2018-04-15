@@ -8,7 +8,7 @@
     </parent>
     <artifactId>a4javadoc-javaagent-api</artifactId>
     <packaging>jar</packaging>
-    <name>a4javaDoc Javaagent Module API</name>
+    <name>${project.artifactId}</name>
     <description>API for plugins.</description>
     
     <dependencies>

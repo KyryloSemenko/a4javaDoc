@@ -8,7 +8,7 @@
     </parent>
     <artifactId>a4javadoc-plugins-recorder</artifactId>
     <packaging>jar</packaging>
-    <name>a4javadoc Interceptor Plugin</name>
+    <name>${project.artifactId}</name>
     <description>Records intercepted methods states.</description>
 
     <properties>
@@ -66,117 +66,40 @@
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
-                <dependencies>
-                    <dependency>
-                        <groupId>org.springframework.boot</groupId>
-                        <artifactId>spring-boot-maven-plugin</artifactId>
-                        <version>1.5.10.RELEASE</version>
-                    </dependency>
-                </dependencies>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <version>3.1.0</version>
                 <configuration>
-                    <keepDependenciesWithProvidedScope>true</keepDependenciesWithProvidedScope>
-                    <createDependencyReducedPom>true</createDependencyReducedPom>
-                    <filters>
-                        <filter>
-                            <artifact>*:*</artifact>
-                            <excludes>
-<!--                                 <exclude>META-INF/*.SF</exclude> -->
-<!--                                 <exclude>META-INF/*.DSA</exclude> -->
-<!--                                 <exclude>META-INF/*.RSA</exclude> -->
-                            </excludes>
-                        </filter>
-                    </filters>
+                    <descriptorRefs>
+                        <descriptorRef>jar-with-dependencies</descriptorRef>
+                    </descriptorRefs>
+                    <finalName>${project.artifactId}-${project.version}-plugin</finalName>
+                    <appendAssemblyId>false</appendAssemblyId>
+                    <attach>false</attach>
+                    <archive>
+                        <index>true</index>
+                        <manifest>
+                            <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+                            <addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
+                        </manifest>
+                        <manifestEntries>
+                            <Plugin-Id>${plugin.id}</Plugin-Id>
+                            <Plugin-Version>${plugin.version}</Plugin-Version>
+                            <Plugin-Provider>${plugin.provider}</Plugin-Provider>
+                            <Plugin-Class>${plugin.class}</Plugin-Class>
+                            <Plugin-Dependencies>${plugin.dependencies}</Plugin-Dependencies>
+                        </manifestEntries>
+                    </archive>
                 </configuration>
                 <executions>
                     <execution>
+                        <id>make-assembly</id>
                         <phase>package</phase>
                         <goals>
-                            <goal>shade</goal>
+                            <goal>single</goal>
                         </goals>
-                        <configuration>
-                            <transformers>
-                                <transformer
-                                    implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
-                                    <resource>META-INF/spring.handlers</resource>
-                                </transformer>
-                                <transformer
-                                    implementation="org.springframework.boot.maven.PropertiesMergingResourceTransformer">
-                                    <resource>META-INF/spring.factories</resource>
-                                </transformer>
-                                <transformer
-                                    implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
-                                    <resource>META-INF/spring.schemas</resource>
-                                </transformer>
-                                <transformer
-                                    implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
-                                <transformer
-                                    implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>com.apache.a4javadoc.javaagent.spring.SpringInitializer</mainClass>
-                                </transformer>
-                            </transformers>
-                        </configuration>
                     </execution>
                 </executions>
             </plugin>
-            <!-- For creating a runnable jar call:
-                mvn clean install spring-boot:repackage -DskipTests=true -->
-<!--             <plugin> -->
-<!--                 <groupId>org.springframework.boot</groupId> -->
-<!--                 <artifactId>spring-boot-maven-plugin</artifactId> -->
-<!--                 <version>1.5.10.RELEASE</version> -->
-<!--                 <executions> -->
-<!--                     <execution> -->
-<!--                         <goals> -->
-<!--                             <goal>repackage</goal> -->
-<!--                         </goals> -->
-<!--                         <configuration> -->
-<!--                             <fork>true</fork> -->
-<!--                             <classifier>spring-boot</classifier> -->
-<!--                             <mainClass>com.apache.a4javadoc.javaagent.spring.SpringInitializer</mainClass> -->
-<!--                         </configuration> -->
-<!--                     </execution> -->
-<!--                 </executions> -->
-<!--             </plugin> -->
-<!--             <plugin> -->
-<!--                 <groupId>org.apache.maven.plugins</groupId> -->
-<!--                 <artifactId>maven-assembly-plugin</artifactId> -->
-<!--                 <version>3.1.0</version> -->
-<!--                 <configuration> -->
-<!--                     <descriptorRefs> -->
-<!--                         <descriptorRef>jar-with-dependencies</descriptorRef> -->
-<!--                     </descriptorRefs> -->
-<!--                     <descriptors> -->
-<!--                         <descriptor>assembly/assembly.xml</descriptor> -->
-<!--                     </descriptors> -->
-<!--                     <finalName>${project.artifactId}-${project.version}-plugin</finalName> -->
-<!--                     <appendAssemblyId>false</appendAssemblyId> -->
-<!--                     <attach>false</attach> -->
-<!--                     <archive> -->
-<!--                         <index>true</index> -->
-<!--                         <manifest> -->
-<!--                             <addDefaultImplementationEntries>true</addDefaultImplementationEntries> -->
-<!--                             <addDefaultSpecificationEntries>true</addDefaultSpecificationEntries> -->
-<!--                         </manifest> -->
-<!--                         <manifestEntries> -->
-<!--                             <Plugin-Id>${plugin.id}</Plugin-Id> -->
-<!--                             <Plugin-Version>${plugin.version}</Plugin-Version> -->
-<!--                             <Plugin-Provider>${plugin.provider}</Plugin-Provider> -->
-<!--                             <Plugin-Class>${plugin.class}</Plugin-Class> -->
-<!--                             <Plugin-Dependencies>${plugin.dependencies}</Plugin-Dependencies> -->
-<!--                         </manifestEntries> -->
-<!--                     </archive> -->
-<!--                 </configuration> -->
-<!--                 <executions> -->
-<!--                     <execution> -->
-<!--                         <id>make-assembly</id> -->
-<!--                         <phase>package</phase> -->
-<!--                         <goals> -->
-<!--                             <goal>single</goal> -->
-<!--                         </goals> -->
-<!--                     </execution> -->
-<!--                 </executions> -->
-<!--             </plugin> -->
         </plugins>
     </build>
 </project>

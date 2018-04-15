@@ -7,7 +7,7 @@
   </parent>
   <modelVersion>4.0.0</modelVersion>
   <artifactId>a4javadoc-plugins-recorder</artifactId>
-  <name>a4javadoc Interceptor Plugin</name>
+  <name>${project.artifactId}</name>
   <description>Records intercepted methods states.</description>
   <build>
     <finalName>${project.artifactId}-${a4javadoc.version}.jar</finalName>

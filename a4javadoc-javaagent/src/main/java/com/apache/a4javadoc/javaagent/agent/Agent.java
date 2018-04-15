@@ -25,6 +25,8 @@ import net.bytebuddy.utility.JavaModule;
  * @author Kyrylo Semenko
  */
 public class Agent {
+    private static final String PLUGINS_DIRECTORY_DEFAULT_NAME = "plugins";
+
     private static final Logger logger = LoggerFactory.getLogger(Agent.class);
 
     /** The path of the folder where plugins are installed. See a {@link AbstractPluginManager#getPluginsRoot()} method. */
@@ -46,9 +48,32 @@ public class Agent {
         List<String> arguments = runtimeMxBean.getInputArguments();
         logger.info("JVM arguments: {}", arguments);
         
+        initPluginsDirectory(arguments);
+        
+        new AgentBuilder.Default()
+        .type(new CustomClassesMatcher())
+        .transform(new AgentBuilder.Transformer() {
+            public Builder<?> transform(Builder<?> builder, TypeDescription typeDescription, ClassLoader classLoader, JavaModule module) {
+                CustomMethodsMatcher<MethodDescription> customMethodsMatcher = new CustomMethodsMatcher<>();
+                logger.trace("customMethodsMatcher: {}", customMethodsMatcher);
+                
+                return builder.method(customMethodsMatcher)
+                        .intercept(MethodDelegation.to(MethodInterceptor.getInstance()));
+            }
+        })
+        .installOn(instrumentation);
+        
+        logger.info("Premain finished");
+    }
+
+    /**
+     * In case when {@link System} property {@link #PF4J_PLUGINS_DIR} is not defined, the method sets the property.<br>
+     * The value of the property will be set to a directory {@link #PLUGINS_DIRECTORY_DEFAULT_NAME} inside the directory where a4javadoc-javaagent.jar is located. 
+     */
+    private static void initPluginsDirectory(List<String> arguments) {
         if (System.getProperty(PF4J_PLUGINS_DIR) == null) {
             File javaagentParentDirectory = findJavaagentDir(arguments);
-            File pluginsDirectory = new File(javaagentParentDirectory, "plugins");
+            File pluginsDirectory = new File(javaagentParentDirectory, PLUGINS_DIRECTORY_DEFAULT_NAME);
             if (!pluginsDirectory.exists()) {
                 boolean isDirCreated = pluginsDirectory.mkdirs();
                 if (isDirCreated) {
@@ -61,29 +86,12 @@ public class Agent {
             }
             System.setProperty(PF4J_PLUGINS_DIR, pluginsDirectory.getAbsolutePath());
         }
-        
-        final MethodInterceptor methodInterceptor = new MethodInterceptor();
-
-        new AgentBuilder.Default()
-        .type(new CustomClassesMatcher())
-        .transform(new AgentBuilder.Transformer() {
-            public Builder<?> transform(Builder<?> builder, TypeDescription typeDescription, ClassLoader classLoader, JavaModule module) {
-                CustomMethodsMatcher<MethodDescription> customMethodsMatcher = new CustomMethodsMatcher<>();
-                logger.trace("customMethodsMatcher: {}", customMethodsMatcher);
-                
-                return builder.method(customMethodsMatcher)
-                        .intercept(MethodDelegation.to(methodInterceptor));
-            }
-        })
-        .installOn(instrumentation);
-        
-        logger.info("Premain finished");
     }
     
     /**
      * Parse JVM arguments and find out *javaagent*.jar directory.<br>
-     * @param arguments for example <pre>-javaagent:c:\Users\semenko\git\a4javaDoc\a4javadoc-javaagent\target\a4javadoc-javaagent-0.0.1.jar ...</pre>
-     * @return for example <b>c:\Users\semenko\git\a4javaDoc\a4javadoc-javaagent\target</b>
+     * @param arguments for example <pre>-javaagent:c:\Users\Joe\temp\a4javadoc-javaagent-0.0.1.jar ...</pre>
+     * @return for example <b>c:\Users\Joe\temp</b>
      */
     private static File findJavaagentDir(List<String> arguments) {
         for (String arg : arguments) {

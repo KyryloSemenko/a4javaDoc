@@ -15,9 +15,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 public class CustomMethodsMatcher<T extends MethodDescription> extends ElementMatcher.Junction.AbstractBase<T> {
     private static final Logger logger = LoggerFactory.getLogger(CustomClassesMatcher.class);
     
-    /**  */
+    /** En empty constructor with a log message */
     public CustomMethodsMatcher() {
-        // TODO Auto-generated constructor stub
         logger.info("Construction of CustomMethodsMatcher started");
     }
 
@@ -40,7 +39,7 @@ public class CustomMethodsMatcher<T extends MethodDescription> extends ElementMa
         }
         stringBuilder.append(")");
         
-        boolean isMatched = startsWith(stringBuilder.toString(), SystemParametersService.getInstance().getIncludePackages())
+        boolean isMatched = startsWith(stringBuilder.toString(), SystemParametersService.getInstance().getIncludeNames())
                 && !startsWith(stringBuilder.toString(), SystemParametersService.getInstance().getExcludePackages());
         
         if (logger.isDebugEnabled() && isMatched) {

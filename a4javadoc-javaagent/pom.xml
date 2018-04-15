@@ -8,7 +8,7 @@
     </parent>
     <artifactId>a4javadoc-javaagent</artifactId>
     <packaging>jar</packaging>
-    <name>a4javaDoc Javaagent Module</name>
+    <name>${project.artifactId}</name>
     <description>Javaagent to data collection of running applications.</description>
     <url>https://github.com/KyryloSemenko/a4javaDoc</url>
     

@@ -8,7 +8,7 @@
     </parent>
     <artifactId>a4javadoc-plugins</artifactId>
     <packaging>pom</packaging>
-    <name>a4javadoc Plugins Container</name>
+    <name>${project.artifactId}</name>
     <description>Contains plugins of a4javadoc application.</description>
 
     <properties>

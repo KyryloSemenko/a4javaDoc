@@ -5,7 +5,7 @@
     <artifactId>a4javadoc</artifactId>
     <version>0.0.1</version>
     <packaging>pom</packaging>
-    <name>a4javaDoc Parent Module</name>
+    <name>${project.artifactId}</name>
     <description>Javaagent jar for data collection of running applications.</description>
     <url>https://github.com/KyryloSemenko/a4javaDoc</url>
     <scm>

@@ -23,7 +23,10 @@ public class ObjectMapperA4j {
         objectMapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
     }
     
-    /** A faktory of the singleton instance of the {@link ObjectMapperA4j} */
+    /**
+     * A faktory of the singleton instance of the {@link ObjectMapperA4j}
+     * @return the singleton instance
+     */
     public static ObjectMapperA4j getInstance() {
         if (instance == null) {
             instance = new ObjectMapperA4j();

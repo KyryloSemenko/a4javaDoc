@@ -1,83 +1,79 @@
 package com.apache.a4javadoc.javaagent.agent;
 
-import java.io.StringWriter;
-import java.util.List;
+import java.util.Date;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.pf4j.DefaultPluginManager;
-import org.pf4j.PluginManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.apache.a4javadoc.exception.AppRuntimeException;
 import com.apache.a4javadoc.javaagent.api.MethodStateRecorder;
+import com.apache.a4javadoc.plugin.AgentPluginManager;
 
 import net.bytebuddy.implementation.bind.annotation.AllArguments;
 import net.bytebuddy.implementation.bind.annotation.RuntimeType;
 import net.bytebuddy.implementation.bind.annotation.SuperCall;
 
 /**
- * The class is instantiated by Spring container and 
+ * The class is instantiated by {@link Agent}. It contains a state object {@link #methodInvocationCounter}. It is a singleton.<br>
+ * The single instance of the class contains the {@link #intercept(Callable, Object...)} method where an additional behavior appended before and after calling of an instrumented methods.
  * @author Kyrylo Semenko
  */
 public class MethodInterceptor {
     private static final Logger logger = LoggerFactory.getLogger(MethodInterceptor.class);
     
-    private AtomicLong callCounter;
+    /** Each method invocation has its own identifier. It starts from 1 when an instrumented application launched. */
+    private AtomicLong methodInvocationCounter;
     
-    private List<MethodStateRecorder> recorders;
+    private static MethodInterceptor instance;
     
-    /** TODO Kyrylo Semenko */
-    public MethodInterceptor() {
-        callCounter = new AtomicLong(0L);
-        logger.info("Construction of MethodInterceptor started. callCounter: '{}'", callCounter.get());
-        // create the plugin manager
-        final PluginManager pluginManager = new DefaultPluginManager();
-
-        // load the plugins
-        pluginManager.loadPlugins();
-
-        // start (active/resolved) the plugins
-        pluginManager.startPlugins();
-
-        // retrieves the extensions for Greeting extension point
-        recorders = pluginManager.getExtensions(MethodStateRecorder.class);
-        // TODO Kyrylo Semenko
-//        recorders.remove(1);
-        logger.info(String.format("Found %d extensions for extension point '%s'", recorders.size(), MethodStateRecorder.class.getName()));
+    /**
+     * The static factory.
+     * @return a singleton instance
+     */
+    public static MethodInterceptor getInstance() {
+        if (instance == null) {
+            instance = new MethodInterceptor();
+        }
+        return instance;
     }
     
-    // TODO Kyrylo Semenko
+    /** Initializes a {@link #methodInvocationCounter} to 0 */
+    private MethodInterceptor() {
+        if (methodInvocationCounter != null) {
+            throw new AppRuntimeException("AtomicLong callCounter already set and has a value '" + methodInvocationCounter + "'. Creation of a second instance of the " + this.getClass().getName() + " class is not allowed.");
+        }
+        methodInvocationCounter = new AtomicLong(0L);
+        logger.info("Construction of MethodInterceptor started. callCounter: '{}'", methodInvocationCounter.get());
+        
+        logger.info("Found {} extensions for extension point '{}'", AgentPluginManager.getInstance().getMethodStateRecorders().size(), MethodStateRecorder.class.getName());
+    }
+    
+    /**
+     * TODO Kyrylo Semenko
+     */
     @RuntimeType
     public Object intercept(@SuperCall Callable<?> zuper, @AllArguments Object... args) throws Exception {
-        Long counter = callCounter.incrementAndGet();
+        Long methodInvocationId = methodInvocationCounter.incrementAndGet();
         
-        for (MethodStateRecorder methodStateRecorder : recorders) {
-            methodStateRecorder.recordBefore(zuper, args);
+        for (MethodStateRecorder methodStateRecorder : AgentPluginManager.getInstance().getMethodStateRecorders()) {
+            methodStateRecorder.recordBefore(methodInvocationId, new Date(), Thread.currentThread().getStackTrace(), zuper, args);
         }
         
-//        StringWriter stringWriterBefore = new StringWriter();
-//        context.getBean(ObjectMapperA4j.class).writeValue(stringWriterBefore, args);
-//        StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
-//        logger.info("{}, id: {} args before: {}", stackTraceElements[2], counter, stringWriterBefore.toString());
-//        
-//        for (Object object : args) {
-//            System.out.println("object.getClass().getName(): " + object.getClass().getName());
-//        }
-        
-        Object result = zuper.call();
-
-        for (MethodStateRecorder methodStateRecorder : recorders) {
-            methodStateRecorder.recordAfter(zuper, args);
+        Object result = null;
+        try {
+            result = zuper.call();
+        } catch (Throwable throwable) { //NOSONAR
+            for (MethodStateRecorder methodStateRecorder : AgentPluginManager.getInstance().getMethodStateRecorders()) {
+                methodStateRecorder.recordThrowable(methodInvocationId, new Date(), args);
+            }
+            throw throwable;
         }
 
-//        StringWriter stringWriterAfter = new StringWriter();
-//        context.getBean(ObjectMapperA4j.class).writeValue(stringWriterAfter, args);
-//        logger.info("{}, id: {} args after: {}", stackTraceElements[2], counter, stringWriterAfter.toString());
-//        
-//        StringWriter stringWriterReturned = new StringWriter();
-//        context.getBean(ObjectMapperA4j.class).writeValue(stringWriterReturned, result);
-//        logger.info("{}, id: {} returned: {}", stackTraceElements[2], counter, stringWriterReturned.toString());
+        for (MethodStateRecorder methodStateRecorder : AgentPluginManager.getInstance().getMethodStateRecorders()) {
+            methodStateRecorder.recordAfter(methodInvocationId, new Date(), result, args);
+        }
         return result;
     }
 }
