@@ -17,17 +17,17 @@ public interface MethodStateRecorder extends ExtensionPoint {
     
     /**
      * Save a method state before its calling
-     * @param mechodInvocationId an identifier of the method invocation, the same as in {@link #recordThrowable(Long, Date, Object[])} and {@link #recordAfter(Long, Date, Object, Object...)} methods
+     * @param methodInvocationId an identifier of the method invocation, the same as in {@link #recordThrowable(Long, Date, Object[])} and {@link #recordAfter(Long, Date, Object, Object...)} methods
      * @param stackTraceElements an invocation sequence of the method
      * @param recordDate time stamp of the method invocation start
      * @param zuper an instrumented method
      * @param args parameters of the instrumented method
      */
-    public void recordBefore(Long mechodInvocationId, Date recordDate, StackTraceElement[] stackTraceElements, Callable<?> zuper, Object... args);
+    public void recordBefore(Long methodInvocationId, Date recordDate, StackTraceElement[] stackTraceElements, Callable<?> zuper, Object... args);
     
     /**
      * Save a method state in case of exception occurred during its invocation
-     * @param mechodInvocationId an identifier of the method invocation, the same as in {@link #recordBefore(Long, Date, StackTraceElement[], Callable, Object...)} and {@link #recordAfter(Long, Date, Object, Object...)} methods
+     * @param methodInvocationId an identifier of the method invocation, the same as in {@link #recordBefore(Long, Date, StackTraceElement[], Callable, Object...)} and {@link #recordAfter(Long, Date, Object, Object...)} methods
      * @param recordDate time stamp of exception
      * @param args parameters of the instrumented method
      */
@@ -35,7 +35,7 @@ public interface MethodStateRecorder extends ExtensionPoint {
     
     /**
      * Save a method state after its calling
-     * @param mechodInvocationId an identifier of the method invocation, the same as in {@link #recordBefore(Long, Date, StackTraceElement[], Callable, Object...)} and {@link #recordThrowable(Long, Date, Object[])} methods
+     * @param methodInvocationId an identifier of the method invocation, the same as in {@link #recordBefore(Long, Date, StackTraceElement[], Callable, Object...)} and {@link #recordThrowable(Long, Date, Object[])} methods
      * @param recordDate time stamp of the method invocation finish
      * @param result an object returned from the instrumented method or null for the void method.
      * @param args parameters of the instrumented method

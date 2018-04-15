@@ -1,12 +1,13 @@
 package com.apache.a4javadoc.javaagent.agent.test;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 import org.junit.Test;
+
+import com.apache.a4javadoc.javaagent.agent.Agent;
 
 /** 
  * @author Kyrylo Semenko

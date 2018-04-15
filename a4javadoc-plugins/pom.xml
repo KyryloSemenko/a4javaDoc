@@ -43,7 +43,7 @@
     </dependencies>
 
     <modules>
-        <module>a4javadoc-plugins-recorder</module>
+        <module>a4javadoc-plugins-recorder-to-a-log</module>
     </modules>
 
 </project>

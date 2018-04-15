@@ -6,13 +6,13 @@
         <artifactId>a4javadoc-plugins</artifactId>
         <version>0.0.1</version>
     </parent>
-    <artifactId>a4javadoc-plugins-recorder</artifactId>
+    <artifactId>a4javadoc-plugins-recorder-to-a-log</artifactId>
     <packaging>jar</packaging>
     <name>${project.artifactId}</name>
-    <description>Records intercepted methods states.</description>
+    <description>Records intercepted methods states and saves them to an application logger.</description>
 
     <properties>
-        <plugin.id>a4javadoc-plugins-recorder</plugin.id>
+        <plugin.id>a4javadoc-plugins-recorder-to-a-log</plugin.id>
         <plugin.class>com.apache.a4javadoc.javaagent.recorder.RecorderPlugin</plugin.class>
         <plugin.version>0.0.1</plugin.version>
         <plugin.provider>a4javadoc</plugin.provider>
