@@ -1,22 +1,37 @@
 package com.apache.a4javadoc.javaagent.agent;
 
-import java.util.Set;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.apache.a4javadoc.javaagent.agent.namefilter.NameFilterService;
 
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.method.ParameterDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-/** 
+/**
+ * Singleton. Contains the {@link #matches(MethodDescription)} method.
  * @author Kyrylo Semenko
+ * @param <T> see {@link MethodDescription}
  */
 public class CustomMethodsMatcher<T extends MethodDescription> extends ElementMatcher.Junction.AbstractBase<T> {
-    private static final Logger logger = LoggerFactory.getLogger(CustomClassesMatcher.class);
+    private static final Logger logger = LoggerFactory.getLogger(CustomMethodsMatcher.class);
     
-    /** En empty constructor with a log message */
-    public CustomMethodsMatcher() {
+    private static CustomMethodsMatcher<? super MethodDescription> instance;
+    
+    /**
+     * The static factory.
+     * @return a singleton instance
+     */
+    public static CustomMethodsMatcher<? super MethodDescription> getInstance() {
+        if (instance == null) {
+            instance = new CustomMethodsMatcher<>();
+        }
+        return instance;
+    }
+    
+    /** An empty constructor with a log message */
+    private CustomMethodsMatcher() {
         logger.info("Construction of CustomMethodsMatcher started");
     }
 
@@ -39,24 +54,13 @@ public class CustomMethodsMatcher<T extends MethodDescription> extends ElementMa
         }
         stringBuilder.append(")");
         
-        boolean isMatched = startsWith(stringBuilder.toString(), SystemParametersService.getInstance().getIncludeNames())
-                && !startsWith(stringBuilder.toString(), SystemParametersService.getInstance().getExcludePackages());
+        boolean matches = NameFilterService.getInstance().matches(stringBuilder.toString());
         
-        if (logger.isDebugEnabled() && isMatched) {
-            logger.debug("The method will be intercepted and instrumented '{}'", stringBuilder.toString());
+        if (logger.isDebugEnabled() && matches) {
+            logger.debug("The method will be intercepted and instrumentalized '{}'", stringBuilder.toString());
         }
         
-        return isMatched;
-    }
-
-    /** @return true if the first parameter value starts with one of Strings from the set from the second parameter. */
-    private boolean startsWith(String javaClassName, Set<String> set) {
-        for (String next : set) {
-            if (javaClassName.startsWith(next)) {
-                return true;
-            }
-        }
-        return false;
+        return matches;
     }
 
 }

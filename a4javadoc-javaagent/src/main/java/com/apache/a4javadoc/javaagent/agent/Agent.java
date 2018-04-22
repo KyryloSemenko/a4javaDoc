@@ -12,11 +12,14 @@ import org.slf4j.LoggerFactory;
 
 import com.apache.a4javadoc.exception.AppRuntimeException;
 
+import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.DynamicType.Builder;
+import net.bytebuddy.implementation.Implementation;
 import net.bytebuddy.implementation.MethodDelegation;
+import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.utility.JavaModule;
 
 /**
@@ -50,18 +53,43 @@ public class Agent {
         
         initPluginsDirectory(arguments);
         
-        new AgentBuilder.Default()
+        // TODO Kyrylo Semenko doresit staticke metody a vlakna https://tersesystems.com/blog/2016/01/19/redefining-java-dot-lang-dot-system/
+//        final ByteBuddy byteBuddy = new ByteBuddy();
+        final ByteBuddy byteBuddy = new ByteBuddy().with(Implementation.Context.Default.Factory.INSTANCE);
+//        final ByteBuddy byteBuddy = new ByteBuddy().with(Implementation.Context.Disabled.Factory.INSTANCE);
+   
+        new AgentBuilder.Default(byteBuddy)
+            .with(AgentBuilder.Listener.StreamWriting.toSystemOut())
+            .with(AgentBuilder.TypeStrategy.Default.REDEFINE)
+//        .with(AgentBuilder.InitializationStrategy.NoOp.INSTANCE)
+            .with(AgentBuilder.RedefinitionStrategy.REDEFINITION)
         .type(new CustomClassesMatcher())
         .transform(new AgentBuilder.Transformer() {
             public Builder<?> transform(Builder<?> builder, TypeDescription typeDescription, ClassLoader classLoader, JavaModule module) {
-                CustomMethodsMatcher<MethodDescription> customMethodsMatcher = new CustomMethodsMatcher<>();
-                logger.trace("customMethodsMatcher: {}", customMethodsMatcher);
+                ElementMatcher<? super MethodDescription> customMethodsMatcher = CustomMethodsMatcher.getInstance();
+                logger.info("customMethodsMatcher: {}", customMethodsMatcher);
+                MethodInterceptor methodInterceptor = MethodInterceptor.getInstance();
+                logger.info("methodInterceptor {}", methodInterceptor);
                 
                 return builder.method(customMethodsMatcher)
-                        .intercept(MethodDelegation.to(MethodInterceptor.getInstance()));
+                        .intercept(MethodDelegation.to(methodInterceptor));
             }
         })
         .installOn(instrumentation);
+        
+//        final AgentBuilder.Transformer transformer =
+//                (b, typeDescription) -> b.method(ElementMatchers.named("setSecurityManager"))
+//                        .intercept(MethodDelegation.to(MySystemInterceptor.class));
+//
+//        final AgentBuilder agentBuilder = new AgentBuilder.Default()
+//                .withByteBuddy(byteBuddy)
+//                .withInitializationStrategy(AgentBuilder.InitializationStrategy.NoOp.INSTANCE)
+//                .withRedefinitionStrategy(AgentBuilder.RedefinitionStrategy.REDEFINITION)
+//                .withTypeStrategy(AgentBuilder.TypeStrategy.Default.REDEFINE)
+//                .type(systemType)
+//                .transform(transformer);
+//        agentBuilder.installOn(instrumentation);
+
         
         logger.info("Premain finished");
     }
@@ -106,8 +134,9 @@ public class Agent {
 
     /**
      * Print out information about the jar and do nothing else.
+     * @param args not used
      */
     public static void main(String[] args) {
-        logger.info("The jar is not runnable. See readme on https://github.com/KyryloSemenko/a4javaDoc");
+        logger.info("The jar is not runnable. See readme https://github.com/KyryloSemenko/a4javaDoc");
     }
 }
