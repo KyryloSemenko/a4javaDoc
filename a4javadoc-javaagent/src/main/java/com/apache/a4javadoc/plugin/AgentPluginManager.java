@@ -4,6 +4,8 @@ import java.util.List;
 
 import org.pf4j.DefaultPluginManager;
 import org.pf4j.PluginManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.apache.a4javadoc.javaagent.api.MethodStateRecorder;
 
@@ -12,13 +14,17 @@ import com.apache.a4javadoc.javaagent.api.MethodStateRecorder;
  * @author Kyrylo Semenko
  */
 public class AgentPluginManager {
+    private static final Logger logger = LoggerFactory.getLogger(AgentPluginManager.class);
     
     /** Plugins of the module */
     private List<MethodStateRecorder> methodStateRecorders;
     
     private static AgentPluginManager instance;
     
-    /** A faktory of the singleton instance of the class */
+    /**
+     * A faktory of the singleton instance of the class
+     * @return the singleton
+     */
     public static AgentPluginManager getInstance() {
         if (instance == null) {
             instance = new AgentPluginManager();
@@ -31,19 +37,12 @@ public class AgentPluginManager {
         final PluginManager pluginManager = new DefaultPluginManager();
         pluginManager.loadPlugins();
         pluginManager.startPlugins();
-        setMethodStateRecorders(pluginManager.getExtensions(MethodStateRecorder.class));
+        methodStateRecorders = pluginManager.getExtensions(MethodStateRecorder.class);
     }
 
     /** @return The {@link AgentPluginManager#methodStateRecorders} field */
     public List<MethodStateRecorder> getMethodStateRecorders() {
         return methodStateRecorders;
     }
-
-    /** See the {@link AgentPluginManager#methodStateRecorders} field */
-    public void setMethodStateRecorders(List<MethodStateRecorder> methodStateRecorders) {
-        this.methodStateRecorders = methodStateRecorders;
-    }
-    
-    
 
 }

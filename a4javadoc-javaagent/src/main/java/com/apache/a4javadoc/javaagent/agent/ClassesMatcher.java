@@ -15,12 +15,12 @@ import net.bytebuddy.utility.JavaModule;
  * Filters classes for instrumentation in {@link Agent}, see the {@link #matches(TypeDescription, ClassLoader, JavaModule, Class, ProtectionDomain)} method.
  * @author Kyrylo Semenko
  */
-public class CustomClassesMatcher implements RawMatcher {
-    private static final Logger logger = LoggerFactory.getLogger(CustomClassesMatcher.class);
+public class ClassesMatcher implements RawMatcher {
+    private static final Logger logger = LoggerFactory.getLogger(ClassesMatcher.class);
     
     /** An empty constructor with a log message */
-    public CustomClassesMatcher() {
-        logger.info("Construction of CustomClassesMatcher started");
+    public ClassesMatcher() {
+        logger.info("Construction of ClassesMatcher started");
     }
 
     /** 

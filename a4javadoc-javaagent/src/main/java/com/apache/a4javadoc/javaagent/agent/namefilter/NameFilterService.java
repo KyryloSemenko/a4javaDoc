@@ -4,13 +4,14 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 import org.apache.commons.io.FilenameUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Singleton. Parser for {@link System} parameters. Stateful object contains {@link #includeNames} and {@link #excludeNames} to be instrumentalized.
+ * Singleton. Parser for {@link System} parameters. Stateful object contains {@link #includeNames} and {@link #excludeNames} to be instrumented.
  * @author Kyrylo Semenko
  */
 public class NameFilterService {
@@ -18,10 +19,10 @@ public class NameFilterService {
     private static final Logger logger = LoggerFactory.getLogger(NameFilterService.class);
     
     /**
-     * The {@link System} property contains the resource names which have to be instrumentalized.<br>
-     * Resource names should be separated by comma ',' and can be wildcarded, see a {@link FilenameUtils#wildcardMatch(String, String)} method javaDoc.<br>
-     * The each method in a examined application has a name, for example <i>com.foo.ThreadExample.run()</i> or <i>com.foo.ThreadExample.printMessage(java.lang.String, java.io.InputStream)</i><br>
-     * A person who runs a a4javadoc javaagent should define which methods will be instrumentalized in a JVM argument, for example <pre>... -javaagent=c:\Users\Joe\temp\a4javadoc-javaagent.jar -Da4javadoc.include=com.foo*,org.foo*,*.foo.*.MyClass* ...</pre><br>
+     * The {@link System} property contains the resource names which have to be instrumented.<br>
+     * Resource names should be separated by '{@value #RULE_SEPARATOR}' and can be wildcarded, see a {@link FilenameUtils#wildcardMatch(String, String)} method javaDoc.<br>
+     * The each method in an examined application has a name, for example <i>com.foo.ThreadExample.run()</i> or <i>com.foo.ThreadExample.printMessage(java.lang.String, java.io.InputStream)</i><br>
+     * A person who runs a a4javadoc javaagent should define which methods will be instrumented in a JVM argument, for example <pre>... -javaagent=c:\Users\Joe\temp\a4javadoc-javaagent.jar -Da4javadoc.include=com.foo*|org.foo*|*.foo.*.MyClass* ...</pre><br>
      * 
      * Examples:<br>
      * <b>com.foo.*</b> - All methods in a com.foo package<br>
@@ -30,7 +31,7 @@ public class NameFilterService {
      * <b>*.ExampleClass*</b> - All methods of an ExampleClass classes from all packages<br>
      * <b>com.*.ExampleClass*</b> - All methods in a ExampleClass classes from all sub packages in a <i>com</i> package<br>
      * <b>com.*.ExampleClass.get*</b> - All getters in all ExampleClass classes from all sub packages in a <i>com</i> package<br>
-     * <b>com.foo.ExampleClass.method(java.lang.String, long, java.lang.StringBuilder)</b> - the one defined method only.
+     * <b>com.foo.ExampleClass.method(java.lang.String,long,java.lang.StringBuilder)</b> - the one defined method only.
      */
     static final String SYSTEM_PROPERTY_INCLUDE_NAMES = "a4javadoc.include";
     
@@ -38,11 +39,11 @@ public class NameFilterService {
      * The {@link System} property contains the resource names which have to be excluded from instrumentation.<br>
      * Description of the property syntax see in {@link #SYSTEM_PROPERTY_INCLUDE_NAMES}<br>
      * An example of JVM args:<br>
-     * <pre>... -javaagent=c:\Users\Joe\temp\a4javadoc-javaagent.jar -Da4javadoc.include=com.foo* -Da4javadoc.exclude=*.setPassword*,*.getPassword(),com.foo.secure* ...</pre><br>
+     * <pre>... -javaagent=c:\Users\Joe\temp\a4javadoc-javaagent.jar -Da4javadoc.include=com.foo*|com.bar.method(java.lang.String,int) -Da4javadoc.exclude=*.setPassword*|*.getPassword()|com.foo.secure* ...</pre><br>
      */
     static final String SYSTEM_PROPERTY_EXCLUDE_NAMES = "a4javadoc.exclude";
     
-    private static final String PACKAGES_SEPARATOR = ",";
+    private static final String RULE_SEPARATOR = "|";
     
     /** Strings obtained from {@link #SYSTEM_PROPERTY_INCLUDE_NAMES} */
     private Set<String> includeNames = null;
@@ -96,7 +97,7 @@ public class NameFilterService {
         String includeNamesString = System.getProperty(SYSTEM_PROPERTY_INCLUDE_NAMES);
         logger.info("-D{}: '{}'", SYSTEM_PROPERTY_INCLUDE_NAMES, includeNamesString);
         if (includeNamesString != null) {
-            includeNames = new HashSet<>(Arrays.asList(includeNamesString.split(PACKAGES_SEPARATOR)));
+            includeNames = new HashSet<String>(Arrays.asList(includeNamesString.split(Pattern.quote(RULE_SEPARATOR))));
         } else {
             includeNames = Collections.emptySet();
         }
@@ -106,9 +107,9 @@ public class NameFilterService {
     private void prepareExcludes() {
         String excludeNamesString = System.getProperty(SYSTEM_PROPERTY_EXCLUDE_NAMES);
         logger.info("-D{}: '{}'", SYSTEM_PROPERTY_EXCLUDE_NAMES, excludeNamesString);
-        excludeNames = new HashSet<>();
+        excludeNames = new HashSet<String>();
         if (excludeNamesString != null) {
-            excludeNames = new HashSet<>(Arrays.asList(excludeNamesString.split(PACKAGES_SEPARATOR)));
+            excludeNames = new HashSet<String>(Arrays.asList(excludeNamesString.split(Pattern.quote(RULE_SEPARATOR))));
         } else {
             excludeNames = Collections.emptySet();
         }

@@ -14,25 +14,29 @@ import net.bytebuddy.matcher.ElementMatcher;
  * @author Kyrylo Semenko
  * @param <T> see {@link MethodDescription}
  */
-public class CustomMethodsMatcher<T extends MethodDescription> extends ElementMatcher.Junction.AbstractBase<T> {
-    private static final Logger logger = LoggerFactory.getLogger(CustomMethodsMatcher.class);
+public class MethodsMatcher<T extends MethodDescription> extends ElementMatcher.Junction.AbstractBase<T> {
     
-    private static CustomMethodsMatcher<? super MethodDescription> instance;
+    /** Separates parameters names within brackets */
+    public static final String METHOD_PARAMETERS_SEPARATOR = ",";
+
+    private static final Logger logger = LoggerFactory.getLogger(MethodsMatcher.class);
+    
+    private static MethodsMatcher<? super MethodDescription> instance;
     
     /**
      * The static factory.
      * @return a singleton instance
      */
-    public static CustomMethodsMatcher<? super MethodDescription> getInstance() {
+    public static MethodsMatcher<? super MethodDescription> getInstance() {
         if (instance == null) {
-            instance = new CustomMethodsMatcher<>();
+            instance = new MethodsMatcher<MethodDescription>();
         }
         return instance;
     }
     
     /** An empty constructor with a log message */
-    private CustomMethodsMatcher() {
-        logger.info("Construction of CustomMethodsMatcher started");
+    private MethodsMatcher() {
+        logger.info("Construction of MethodsMatcher started");
     }
 
     /** 
@@ -43,21 +47,21 @@ public class CustomMethodsMatcher<T extends MethodDescription> extends ElementMa
         StringBuilder stringBuilder = new StringBuilder()
             .append(target.getDeclaringType().getTypeName())
             .append(".")
-            .append(target.getName())
+            .append(target.getInternalName())
             .append("(");
         for (int i = 0; i < target.getParameters().size(); i++) {
             ParameterDescription.AbstractBase parameter = (ParameterDescription.AbstractBase) target.getParameters().get(i);
             stringBuilder.append(parameter.getType().getTypeName());
             if (target.getParameters().size() - 1 > i) {
-                stringBuilder.append(", ");
+                stringBuilder.append(METHOD_PARAMETERS_SEPARATOR);
             }
         }
         stringBuilder.append(")");
         
         boolean matches = NameFilterService.getInstance().matches(stringBuilder.toString());
         
-        if (logger.isDebugEnabled() && matches) {
-            logger.debug("The method will be intercepted and instrumentalized '{}'", stringBuilder.toString());
+        if (logger.isTraceEnabled() && matches) {
+            logger.trace("The method will be intercepted and instrumented '{}'", stringBuilder.toString());
         }
         
         return matches;

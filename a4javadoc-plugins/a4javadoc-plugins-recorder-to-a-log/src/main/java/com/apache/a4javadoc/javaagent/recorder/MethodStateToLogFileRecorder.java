@@ -11,8 +11,9 @@ import org.pf4j.Extension;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.apache.a4javadoc.javaagent.api.MethodStateContainer;
 import com.apache.a4javadoc.javaagent.api.MethodStateRecorder;
+import com.apache.a4javadoc.javaagent.api.StateAfterInvocation;
+import com.apache.a4javadoc.javaagent.api.StateBeforeInvocation;
 import com.apache.a4javadoc.javaagent.mapper.ObjectMapperA4j;
 
 /**
@@ -30,69 +31,62 @@ public class MethodStateToLogFileRecorder implements MethodStateRecorder {
     }
     
     @Override
-    public void recordBefore(MethodStateContainer methodStateContainer) {
-        List<Entry<String, Object>> list = generateStateMap(methodStateContainer);
+    public void recordBefore(StateBeforeInvocation stateBeforeInvocation) {
+        truncateStackTrace(stateBeforeInvocation);
         StringWriter stringWriter = new StringWriter().append("State before: ");
-        ObjectMapperA4j.getInstance().writeValue(stringWriter, list);
+        ObjectMapperA4j.getInstance().writeValue(stringWriter, stateBeforeInvocation);
         if (logger.isInfoEnabled()) {
             logger.info(stringWriter.toString());
         }
     }
     
-    @Override
-    public void recordThrowable(MethodStateContainer methodStateContainer, Exception exception) {
-        List<Entry<String, Object>> list = generateStateMap(methodStateContainer);
-        list.add(new AbstractMap.SimpleEntry<>("exception", (Object) exception.getMessage()));
-        StringWriter stringWriter = new StringWriter().append("Exception state: ");
-        ObjectMapperA4j.getInstance().writeValue(stringWriter, list);
-        if (logger.isInfoEnabled()) {
-            logger.info(stringWriter.toString());
-        }
+    /** Find out the first closest caller of the method */
+    private void truncateStackTrace(StateBeforeInvocation stateBeforeInvocation) {
+//        for ()
+        //TODO Kyrylo Semenko
     }
-    
+
     @Override
-    public void recordAfter(MethodStateContainer methodStateContainer, Object result) {
-        List<Entry<String, Object>> list = generateStateMap(methodStateContainer);
-        Object generatedResult = generateResult(methodStateContainer.getInstrumentalizedMethod(), result);
-        list.add(new AbstractMap.SimpleEntry<>("result", generatedResult));
-        StringWriter stringWriter = new StringWriter().append("State after: ");
-        ObjectMapperA4j.getInstance().writeValue(stringWriter, list);
+    public void recordAfter(StateAfterInvocation stateAfterInvocation) {
+        StringWriter stringWriter = new StringWriter().append("State   after: ");
+        ObjectMapperA4j.getInstance().writeValue(stringWriter, stateAfterInvocation);
         if (logger.isInfoEnabled()) {
             logger.info(stringWriter.toString());
         }
     }
     
     /**
-     * @param instrumentalizedMethod contains a type
+     * @param instrumentedMethod contains a type
      * @param result contains a value
      * @return for example:
      * <pre>boolean:true</pre>
      * <pre>void:null</pre>
      */
-    private Entry<String, String> generateResult(Method instrumentalizedMethod, Object result) {
-        return new AbstractMap.SimpleEntry<>(instrumentalizedMethod.getReturnType().getName(), String.valueOf(result));
+    private Entry<String, String> generateResult(Object instrumentedMethod, Object result) {
+//        return new AbstractMap.SimpleEntry<>(instrumentedMethod.getReturnType().getName(), String.valueOf(result));
+        return new AbstractMap.SimpleEntry<String, String>(instrumentedMethod.toString(), String.valueOf(result));
     }
 
-    /**
-     * Prepare data for a JSON string
-     * @param methodStateContainer the data source
-     */
-    private List<Entry<String, Object>> generateStateMap(MethodStateContainer methodStateContainer) {
-        List<Entry<String, Object>> list = new ArrayList<>();
-        
-        AbstractMap.SimpleEntry<String, Object> idEntry = new AbstractMap.SimpleEntry<>("methodInvocationId", (Object) methodStateContainer.getMethodInvocationId());
-        list.add(idEntry);
-
-        String caller = findCaller(methodStateContainer.getStackTrace());
-        list.add(new AbstractMap.SimpleEntry<String, Object>("caller", caller));
-        
-        String nameEntry = generateMethodName(methodStateContainer.getInstrumentalizedObject(), methodStateContainer.getInstrumentalizedMethod());
-        list.add(new AbstractMap.SimpleEntry<String, Object>("name", nameEntry));
-        
-        List<Entry<String, Object>> parameters = generateParameters(methodStateContainer.getInstrumentalizedMethod(), methodStateContainer.getInstrumentalizedParameters());
-        list.add(new AbstractMap.SimpleEntry<String, Object>("parameters", parameters));
-        return list;
-    }
+//    /**
+//     * Prepare data for a JSON string
+//     * @param methodStateContainer the data source
+//     */
+//    private List<Entry<String, Object>> generateStateMap(MethodStateContainer methodStateContainer) {
+//        List<Entry<String, Object>> list = new ArrayList<Entry<String, Object>>();
+//        
+//        AbstractMap.SimpleEntry<String, Object> idEntry = new AbstractMap.SimpleEntry<String, Object>("methodInvocationId", (Object) methodStateContainer.getMethodInvocationId());
+//        list.add(idEntry);
+//
+//        String caller = findCaller(methodStateContainer.getStackTrace());
+//        list.add(new AbstractMap.SimpleEntry<String, Object>("caller", caller));
+//        
+//        String nameEntry = generateMethodName(methodStateContainer.getInstrumentedObject(), methodStateContainer.getInstrumentedMethod());
+//        list.add(new AbstractMap.SimpleEntry<String, Object>("name", nameEntry));
+//        
+//        List<Entry<String, Object>> parameters = generateParameters(methodStateContainer.getInstrumentedMethod(), methodStateContainer.getInstrumentedParameters());
+//        list.add(new AbstractMap.SimpleEntry<String, Object>("parameters", parameters));
+//        return list;
+//    }
 
     /**
      * @param stackTrace the method invocation history
@@ -109,39 +103,39 @@ public class MethodStateToLogFileRecorder implements MethodStateRecorder {
     }
 
     /**
-     * @param instrumentalizedMethod contains parameters type
-     * @param instrumentalizedParameters contains parameters value
+     * @param instrumentedMethod contains parameters type
+     * @param instrumentedParameters contains parameters value
      * @return for example:
      * <pre>
      * [java.lang.String=Parameter, int=1, java.lang.StringBuilder=StringBuilder parameter.]
      * </pre>
      */
-    private List<Entry<String, Object>> generateParameters(Method instrumentalizedMethod, Object[] instrumentalizedParameters) {
-        List<Entry<String, Object>> list = new ArrayList<>();
-        for (int i = 0; i < instrumentalizedParameters.length; i++) {
-            String type = instrumentalizedMethod.getParameterTypes()[i].getName();
-            Object value = instrumentalizedParameters[i];
-            AbstractMap.SimpleEntry<String, Object> entry = new AbstractMap.SimpleEntry<>(type, value);
+    private List<Entry<String, Object>> generateParameters(Method instrumentedMethod, Object[] instrumentedParameters) {
+        List<Entry<String, Object>> list = new ArrayList<Entry<String, Object>>();
+        for (int i = 0; i < instrumentedParameters.length; i++) {
+            String type = instrumentedMethod.getParameterTypes()[i].getName();
+            Object value = instrumentedParameters[i];
+            AbstractMap.SimpleEntry<String, Object> entry = new AbstractMap.SimpleEntry<String, Object>(type, value);
             list.add(entry);
         }
         return list;
     }
 
     /**
-     * @param instrumentalizedObject contains class type
-     * @param instrumentalizedMethod contains parameters type
+     * @param instrumentedObject contains class type
+     * @param instrumentedMethod contains parameters type
      * @return for example:
      * <pre>com.apache.a4javadoc.javaagent.agent.test.AgentTest(java.lang.String, int, java.lang.StringBuilder)</pre>
      */
-    private String generateMethodName(Object instrumentalizedObject, Method instrumentalizedMethod) {
+    private String generateMethodName(Object instrumentedObject, Method instrumentedMethod) {
         StringBuilder result = new StringBuilder();
-        result.append(instrumentalizedObject.getClass().getName())
+        result.append(instrumentedObject.getClass().getName())
             .append(".")
-            .append(instrumentalizedMethod.getName())
+            .append(instrumentedMethod.getName())
             .append("(");
-        for (int i = 0; i < instrumentalizedMethod.getParameterTypes().length; i++) {
-            result.append(instrumentalizedMethod.getParameterTypes()[i].getName());
-            if (i < instrumentalizedMethod.getParameterTypes().length - 1) {
+        for (int i = 0; i < instrumentedMethod.getParameterTypes().length; i++) {
+            result.append(instrumentedMethod.getParameterTypes()[i].getName());
+            if (i < instrumentedMethod.getParameterTypes().length - 1) {
                 result.append(", ");
             }
         }

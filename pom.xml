@@ -35,12 +35,11 @@
         <maven.compiler.source>1.7</maven.compiler.source>
         <maven.compiler.target>1.7</maven.compiler.target>
         <pf4j.version>2.2.0</pf4j.version>
-        <byte-buddy.version>1.7.11</byte-buddy.version>
+        <byte-buddy.version>1.8.10</byte-buddy.version>
         <slf4j.version>1.7.25</slf4j.version>
         <junit.version>4.12</junit.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <java.version>1.7</java.version>
     </properties>
     
     <modules>

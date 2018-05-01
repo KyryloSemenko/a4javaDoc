@@ -6,10 +6,9 @@ import org.pf4j.ExtensionPoint;
 
 /** 
  * The interface of javaagent module for plugins.
- * It contains three methods:<br>
- * 1. {@link #recordBefore(MethodStateContainer)}<br>
- * 2. {@link #recordThrowable(MethodStateContainer, Exception)}<br>
- * 3. {@link #recordAfter(MethodStateContainer, Object)}<br>
+ * It contains these methods:<br>
+ * 1. {@link #recordBefore(StateBeforeInvocation)}<br>
+ * 2. {@link #recordAfter(StateAfterInvocation)}<br>
  * The interface extends {@link ExtensionPoint}.
  * @author Kyrylo Semenko
  */
@@ -17,22 +16,14 @@ public interface MethodStateRecorder extends ExtensionPoint {
     
     /**
      * Save a method state before its calling
-     * @param methodStateContainer see {@link MethodStateContainer#MethodStateContainer(Long, Date, StackTraceElement[], java.lang.reflect.Method, Object, Object[])}
+     * @param stateBeforeInvocation see {@link StateBeforeInvocation#StateBeforeInvocation(long, Date, StackTraceElement[], String, String, String, String, String, String, Object[])}
      */
-    public void recordBefore(MethodStateContainer methodStateContainer);
+    public void recordBefore(StateBeforeInvocation stateBeforeInvocation);
     
     /**
      * Save a method state after its calling
-     * @param methodStateContainer see {@link MethodStateContainer#MethodStateContainer(Long, Date, StackTraceElement[], java.lang.reflect.Method, Object, Object[])}
-     * @param result an object returned from the instrumentalized method or null for the void method.
+     * @param stateAfterInvocation see {@link StateAfterInvocation#StateAfterInvocation(long, Date, String, Object, Throwable, Object[])}
      */
-    public void recordAfter(MethodStateContainer methodStateContainer, Object result);
+    public void recordAfter(StateAfterInvocation stateAfterInvocation);
     
-    /**
-     * Save a method state in case of exception occurred during its invocation
-     * @param methodStateContainer see {@link MethodStateContainer#MethodStateContainer(Long, Date, StackTraceElement[], java.lang.reflect.Method, Object, Object[])}
-     * @param exeption the exception from the method
-     */
-    public void recordThrowable(MethodStateContainer methodStateContainer, Exception exeption);
-
 }

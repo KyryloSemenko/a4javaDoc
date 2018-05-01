@@ -40,11 +40,11 @@ public class AgentTest {
         }
         AgentTest.staticMethod(thread.getName());
         logger.info("The end");
+//        throw new RuntimeException("Exception message");
     }
 
     private static void staticMethod(String name) {
         logger.info("Thread name: {}", name);
-        
     }
 
     /** This method will be completed by {@link Agent} */
