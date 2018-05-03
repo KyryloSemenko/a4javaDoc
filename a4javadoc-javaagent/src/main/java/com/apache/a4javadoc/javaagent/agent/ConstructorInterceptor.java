@@ -6,8 +6,8 @@ import net.bytebuddy.implementation.bytecode.assign.Assigner.Typing;
 
 /**
  * The class does the sane as the {@link MethodInterceptor}, with a difference in the {@link #enterConstructor(String, String, String, String, String, String, Object[])} method.<br>
- * This approach has been chosen because ByteBuddy cannot catch an exception in constructors,
- * see <a href="https://stackoverflow.com/questions/47248429/how-to-take-the-exception-thrown-by-a-constructor-using-a-bytebuddy-agent">this<a/>
+ * This approach has been chosen because ByteBuddy cannot catch an expectedException in constructors,
+ * see <a href="https://stackoverflow.com/questions/47248429/how-to-take-the-expectedException-thrown-by-a-constructor-using-a-bytebuddy-agent">this<a/>
  * and <a href="https://github.com/raphw/byte-buddy/issues/375">this<a/> links
  * @author Kyrylo Semenko
  */

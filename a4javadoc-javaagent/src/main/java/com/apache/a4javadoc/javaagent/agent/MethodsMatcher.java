@@ -29,7 +29,7 @@ public class MethodsMatcher<T extends MethodDescription> extends ElementMatcher.
      */
     public static MethodsMatcher<? super MethodDescription> getInstance() {
         if (instance == null) {
-            instance = new MethodsMatcher<MethodDescription>();
+            instance = new MethodsMatcher<>();
         }
         return instance;
     }
@@ -37,6 +37,14 @@ public class MethodsMatcher<T extends MethodDescription> extends ElementMatcher.
     /** An empty constructor with a log message */
     private MethodsMatcher() {
         logger.info("Construction of MethodsMatcher started");
+    }
+
+    /**
+     * For test purposes. Don't use the method please.
+     * @param mock the mocked instance for test purposes.
+     */
+    public static void setMockInstance(MethodsMatcher<? super MethodDescription> mock) {
+        instance = mock;
     }
 
     /** 

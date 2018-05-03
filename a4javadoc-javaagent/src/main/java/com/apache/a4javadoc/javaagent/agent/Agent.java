@@ -13,6 +13,8 @@ import org.slf4j.LoggerFactory;
 import com.apache.a4javadoc.exception.AppRuntimeException;
 
 import net.bytebuddy.agent.builder.AgentBuilder;
+import net.bytebuddy.agent.builder.AgentBuilder.Default;
+import net.bytebuddy.agent.builder.AgentBuilder.Transformer;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.type.TypeDescription;
@@ -21,27 +23,44 @@ import net.bytebuddy.matcher.ElementMatchers;
 import net.bytebuddy.utility.JavaModule;
 
 /**
- * Javaagent. It contains the {@link #premain(String, Instrumentation)} method. See mechanism described in the {@link Instrumentation}.<br>
- * The class also contains the {@link #main(String[])} method. 
+ * Javaagent. It contains the {@link #premain(String, Instrumentation)} method. See the behavior described in the {@link Instrumentation} class.<br>
  * @author Kyrylo Semenko
  */
 public class Agent {
-    private static final String PLUGINS_DIRECTORY_DEFAULT_NAME = "plugins";
+    /** Product name */
+    public static final String A4JAVADOC = "a4javadoc";
+
+    static final String CANNOT_CREATE_PLUGINS_DIRECTORY = "Cannot create plugins directory '";
+
+    static final String CANNOT_FIND = "Cannot find '";
+
+    static final String PLUGINS_DIRECTORY_DEFAULT_NAME = "plugins";
 
     private static final Logger logger = LoggerFactory.getLogger(Agent.class);
 
     /** The path of the folder where plugins are installed. See a {@link AbstractPluginManager#getPluginsRoot()} method. */
-    private static final String PF4J_PLUGINS_DIR = "pf4j.pluginsDir";
+    static final String PF4J_PLUGINS_DIR = "pf4j.pluginsDir";
 
-    private static final String JAVAAGENT_ARGS_PREFIX = "-javaagent:";
+    static final String JAVAAGENT_ARGS_PREFIX = "-javaagent:";
     
     /**
-     * Obtains a {@link MethodInterceptor} instance from the Spring container and add it to the {@link Instrumentation}.
-     * @param args not used
+     * Create a new {@link Agent} instance and call {@link #doPremain(String, Instrumentation, Default)}
+     * @param args does not used
      * @param instrumentation see the {@link Instrumentation} javaDoc
      */
     public static void premain(String args, Instrumentation instrumentation) {
+        Agent agent = new Agent();
+        AgentBuilder.Default agentBuilderDefault = new AgentBuilder.Default();
+        agent.doPremain(args, instrumentation, agentBuilderDefault);
+    }
 
+    /**
+     * Uses {@link AgentBuilder} for creation of {@link Transformer} and install it to the {@link Instrumentation}.
+     * @param args does not used
+     * @param instrumentation see the {@link Instrumentation} javaDoc
+     * @param agentBuilderDefault an empty {@link AgentBuilder}
+     */
+    void doPremain(String args, Instrumentation instrumentation, Default agentBuilderDefault) {
         logger.info("Javaagent classpath root: {}", (new File("")).getAbsolutePath());
         logger.info("Premain args: {}", args);
         
@@ -59,7 +78,7 @@ public class Agent {
                 .to(ConstructorInterceptor.class)
                 .on(MethodsMatcher.getInstance().and(ElementMatchers.isConstructor().or(ElementMatchers.isTypeInitializer())));
         
-        new AgentBuilder.Default()
+        agentBuilderDefault
 //            .with(AgentBuilder.Listener.WithErrorsOnly.StreamWriting.toSystemError())
             .type(new ClassesMatcher())
             .transform(new AgentBuilder.Transformer() {
@@ -73,10 +92,11 @@ public class Agent {
     }
 
     /**
+     * Users of the {@link Agent} can specify a {@link #PF4J_PLUGINS_DIR} where plugins are installed, for example in java args <i>-Dpf4j.pluginsDir=/usr/bin/a4javadoc/myPlugins</i>.<br>
      * In case when {@link System} property {@link #PF4J_PLUGINS_DIR} is not defined, the method sets the property.<br>
      * The value of the property will be set to a directory {@link #PLUGINS_DIRECTORY_DEFAULT_NAME} inside the directory where a4javadoc-javaagent.jar is located. 
      */
-    private static void initPluginsDirectory(List<String> arguments) {
+    void initPluginsDirectory(List<String> arguments) {
         if (System.getProperty(PF4J_PLUGINS_DIR) == null) {
             File javaagentParentDirectory = findJavaagentDir(arguments);
             File pluginsDirectory = new File(javaagentParentDirectory, PLUGINS_DIRECTORY_DEFAULT_NAME);
@@ -85,10 +105,10 @@ public class Agent {
                 if (isDirCreated) {
                     logger.info("Plugins directory created: '{}'", pluginsDirectory.getAbsolutePath());
                 } else {
-                    throw new AppRuntimeException("Can not create plugins directory '" + pluginsDirectory.getAbsolutePath() + "'");
+                    throw new AppRuntimeException(CANNOT_CREATE_PLUGINS_DIRECTORY + pluginsDirectory.getAbsolutePath() + "'");
                 }
             } else {
-                logger.info("Plugins directory: '{}'", pluginsDirectory.getAbsolutePath());
+                logger.info("Plugins directory already exists: '{}'", pluginsDirectory.getAbsolutePath());
             }
             System.setProperty(PF4J_PLUGINS_DIR, pluginsDirectory.getAbsolutePath());
         }
@@ -99,22 +119,15 @@ public class Agent {
      * @param arguments for example <pre>-javaagent:c:\Users\Joe\temp\a4javadoc-javaagent-0.0.1.jar ...</pre>
      * @return for example <b>c:\Users\Joe\temp</b>
      */
-    private static File findJavaagentDir(List<String> arguments) {
+    File findJavaagentDir(List<String> arguments) {
         for (String arg : arguments) {
-            if (arg.contains(JAVAAGENT_ARGS_PREFIX)) {
+            if (arg.startsWith(JAVAAGENT_ARGS_PREFIX) && arg.contains(A4JAVADOC)) {
                 int beginIndex = JAVAAGENT_ARGS_PREFIX.length();
                 File file = new File(arg.substring(beginIndex));
                 return file.getParentFile();
             }
         }
-        throw new AppRuntimeException("Can not find '" + JAVAAGENT_ARGS_PREFIX + "' in arguments '" + arguments + "'");
+        throw new AppRuntimeException(CANNOT_FIND + JAVAAGENT_ARGS_PREFIX + "' in arguments '" + arguments + "'");
     }
 
-    /**
-     * Print out information about the jar and do nothing else.
-     * @param args not used
-     */
-    public static void main(String[] args) {
-        logger.info("The jar is not runnable. See readme https://github.com/KyryloSemenko/a4javaDoc");
-    }
 }

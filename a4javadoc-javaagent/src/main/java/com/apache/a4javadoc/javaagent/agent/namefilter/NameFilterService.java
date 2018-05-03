@@ -10,6 +10,8 @@ import org.apache.commons.io.FilenameUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.apache.a4javadoc.javaagent.agent.Agent;
+
 /**
  * Singleton. Parser for {@link System} parameters. Stateful object contains {@link #includeNames} and {@link #excludeNames} to be instrumented.
  * @author Kyrylo Semenko
@@ -33,7 +35,7 @@ public class NameFilterService {
      * <b>com.*.ExampleClass.get*</b> - All getters in all ExampleClass classes from all sub packages in a <i>com</i> package<br>
      * <b>com.foo.ExampleClass.method(java.lang.String,long,java.lang.StringBuilder)</b> - the one defined method only.
      */
-    static final String SYSTEM_PROPERTY_INCLUDE_NAMES = "a4javadoc.include";
+    static final String SYSTEM_PROPERTY_INCLUDE_NAMES = Agent.A4JAVADOC + ".include";
     
     /**
      * The {@link System} property contains the resource names which have to be excluded from instrumentation.<br>
@@ -41,7 +43,7 @@ public class NameFilterService {
      * An example of JVM args:<br>
      * <pre>... -javaagent=c:\Users\Joe\temp\a4javadoc-javaagent.jar -Da4javadoc.include=com.foo*|com.bar.method(java.lang.String,int) -Da4javadoc.exclude=*.setPassword*|*.getPassword()|com.foo.secure* ...</pre><br>
      */
-    static final String SYSTEM_PROPERTY_EXCLUDE_NAMES = "a4javadoc.exclude";
+    static final String SYSTEM_PROPERTY_EXCLUDE_NAMES = Agent.A4JAVADOC + ".exclude";
     
     private static final String RULE_SEPARATOR = "|";
     
@@ -68,6 +70,14 @@ public class NameFilterService {
     /** The private empty constructor */
     private NameFilterService() {
         // empty
+    }
+
+    /**
+     * For test purposes. Don't use the method please.
+     * @param mock the mocked instance for test purposes.
+     */
+    public static void setMockInstance(NameFilterService mock) {
+        instance = mock;
     }
     
     /**
@@ -97,7 +107,7 @@ public class NameFilterService {
         String includeNamesString = System.getProperty(SYSTEM_PROPERTY_INCLUDE_NAMES);
         logger.info("-D{}: '{}'", SYSTEM_PROPERTY_INCLUDE_NAMES, includeNamesString);
         if (includeNamesString != null) {
-            includeNames = new HashSet<String>(Arrays.asList(includeNamesString.split(Pattern.quote(RULE_SEPARATOR))));
+            includeNames = new HashSet<>(Arrays.asList(includeNamesString.split(Pattern.quote(RULE_SEPARATOR))));
         } else {
             includeNames = Collections.emptySet();
         }
@@ -107,9 +117,9 @@ public class NameFilterService {
     private void prepareExcludes() {
         String excludeNamesString = System.getProperty(SYSTEM_PROPERTY_EXCLUDE_NAMES);
         logger.info("-D{}: '{}'", SYSTEM_PROPERTY_EXCLUDE_NAMES, excludeNamesString);
-        excludeNames = new HashSet<String>();
+        excludeNames = new HashSet<>();
         if (excludeNamesString != null) {
-            excludeNames = new HashSet<String>(Arrays.asList(excludeNamesString.split(Pattern.quote(RULE_SEPARATOR))));
+            excludeNames = new HashSet<>(Arrays.asList(excludeNamesString.split(Pattern.quote(RULE_SEPARATOR))));
         } else {
             excludeNames = Collections.emptySet();
         }
