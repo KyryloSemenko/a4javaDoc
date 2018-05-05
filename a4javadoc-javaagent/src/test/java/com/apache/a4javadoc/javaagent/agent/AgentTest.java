@@ -73,7 +73,7 @@ public class AgentTest {
         expectedException.expect(AppRuntimeException.class);
         expectedException.expectMessage(Agent.CANNOT_CREATE_PLUGINS_DIRECTORY);
         Agent agent = spy(new Agent());
-        List<String> list = Arrays.asList(Agent.JAVAAGENT_ARGS_PREFIX + Agent.A4JAVADOC);
+        List<String> list = Arrays.asList(Agent.JAVAAGENT_ARGS_PREFIX + Agent.A4JAVADOC_JAR_NAME);
         when(agent.findJavaagentDir(list)).thenReturn(temporaryFolder.newFile());
         agent.initPluginsDirectory(list);
         verify(agent).findJavaagentDir(list);
@@ -85,7 +85,7 @@ public class AgentTest {
      */
     @Test
     public void initPluginsDirectoryTest() {
-        File tempFile = new File(temporaryFolder.getRoot(), Agent.A4JAVADOC);
+        File tempFile = new File(temporaryFolder.getRoot(), Agent.A4JAVADOC_JAR_NAME);
         Agent agent = new Agent();
         String argument = Agent.JAVAAGENT_ARGS_PREFIX + tempFile.getAbsolutePath();
         agent.initPluginsDirectory(Arrays.asList("otherArgument=0", argument));

@@ -38,6 +38,7 @@ public class AgentPluginManager {
         pluginManager.loadPlugins();
         pluginManager.startPlugins();
         methodStateRecorders = pluginManager.getExtensions(MethodStateRecorder.class);
+        logger.debug("Initialized");
     }
 
     /** @return The {@link AgentPluginManager#methodStateRecorders} field */

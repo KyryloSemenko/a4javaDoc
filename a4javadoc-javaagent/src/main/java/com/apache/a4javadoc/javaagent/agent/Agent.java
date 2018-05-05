@@ -27,16 +27,17 @@ import net.bytebuddy.utility.JavaModule;
  * @author Kyrylo Semenko
  */
 public class Agent {
-    /** Product name */
-    public static final String A4JAVADOC = "a4javadoc";
+    
+    private static final Logger logger = LoggerFactory.getLogger(Agent.class);
+    
+    /** a4javadoc.jar file name */
+    public static final String A4JAVADOC_JAR_NAME = "a4javadoc.jar";
 
     static final String CANNOT_CREATE_PLUGINS_DIRECTORY = "Cannot create plugins directory '";
 
     static final String CANNOT_FIND = "Cannot find '";
 
     static final String PLUGINS_DIRECTORY_DEFAULT_NAME = "plugins";
-
-    private static final Logger logger = LoggerFactory.getLogger(Agent.class);
 
     /** The path of the folder where plugins are installed. See a {@link AbstractPluginManager#getPluginsRoot()} method. */
     static final String PF4J_PLUGINS_DIR = "pf4j.pluginsDir";
@@ -121,7 +122,7 @@ public class Agent {
      */
     File findJavaagentDir(List<String> arguments) {
         for (String arg : arguments) {
-            if (arg.startsWith(JAVAAGENT_ARGS_PREFIX) && arg.contains(A4JAVADOC)) {
+            if (arg.startsWith(JAVAAGENT_ARGS_PREFIX) && arg.contains(A4JAVADOC_JAR_NAME)) {
                 int beginIndex = JAVAAGENT_ARGS_PREFIX.length();
                 File file = new File(arg.substring(beginIndex));
                 return file.getParentFile();

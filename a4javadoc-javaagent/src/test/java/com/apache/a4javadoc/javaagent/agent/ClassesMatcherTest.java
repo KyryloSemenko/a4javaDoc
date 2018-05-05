@@ -6,6 +6,9 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.lang.reflect.Field;
+
+import org.junit.After;
 import org.junit.Test;
 
 import com.apache.a4javadoc.javaagent.agent.namefilter.NameFilterService;
@@ -16,6 +19,16 @@ import net.bytebuddy.description.type.TypeDescription;
  * @author Kyrylo Semenko
  */
 public class ClassesMatcherTest {
+    /**
+     * Remove the mocked instance
+     * @throws Exception if the instance could not be accessible
+     */
+    @After
+    public void resetSingleton() throws Exception {
+       Field instance = NameFilterService.class.getDeclaredField("instance");
+       instance.setAccessible(true);
+       instance.set(null, null);
+    }
 
     /**
      * Test method for {@link com.apache.a4javadoc.javaagent.agent.ClassesMatcher#matches(net.bytebuddy.description.type.TypeDescription, java.lang.ClassLoader, net.bytebuddy.utility.JavaModule, java.lang.Class, java.security.ProtectionDomain)}.
