@@ -35,7 +35,7 @@ public class NameFilterService {
      * <b>com.*.ExampleClass.get*</b> - All getters in all ExampleClass classes from all sub packages in a <i>com</i> package<br>
      * <b>com.foo.ExampleClass.method(java.lang.String,long,java.lang.StringBuilder)</b> - the one defined method only.
      */
-    static final String SYSTEM_PROPERTY_INCLUDE_NAMES = Agent.A4JAVADOC_JAR_NAME + ".include";
+    static final String SYSTEM_PROPERTY_INCLUDE_NAMES = Agent.A4JAVADOC + ".include";
     
     /**
      * The {@link System} property contains the resource names which have to be excluded from instrumentation.<br>
@@ -43,7 +43,7 @@ public class NameFilterService {
      * An example of JVM args:<br>
      * <pre>... -javaagent=c:\Users\Joe\temp\a4javadoc-javaagent.jar -Da4javadoc.include=com.foo*|com.bar.method(java.lang.String,int) -Da4javadoc.exclude=*.setPassword*|*.getPassword()|com.foo.secure* ...</pre><br>
      */
-    static final String SYSTEM_PROPERTY_EXCLUDE_NAMES = Agent.A4JAVADOC_JAR_NAME + ".exclude";
+    static final String SYSTEM_PROPERTY_EXCLUDE_NAMES = Agent.A4JAVADOC + ".exclude";
     
     private static final String RULE_SEPARATOR = "|";
     
@@ -72,14 +72,6 @@ public class NameFilterService {
         // empty
     }
 
-    /**
-     * For test purposes. Don't use the method please.
-     * @param mock the mocked instance for test purposes.
-     */
-    public static void setMockInstance(NameFilterService mock) {
-        instance = mock;
-    }
-    
     /**
      * If the {@link #includeNames} is null, fill it out.
      * @return {@link #includeNames}

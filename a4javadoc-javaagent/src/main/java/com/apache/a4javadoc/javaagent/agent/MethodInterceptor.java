@@ -25,8 +25,10 @@ import net.bytebuddy.implementation.bytecode.assign.Assigner.Typing;
  */
 public class MethodInterceptor {
     
-    /** Public because it used in a code generation */
-    public static final Logger logger = LoggerFactory.getLogger(MethodInterceptor.class); // NOSONAR
+    /** Public because it used in a generated code */
+    public static Logger logger = LoggerFactory.getLogger(MethodInterceptor.class); // NOSONAR
+    
+    static final String SHOULD_NOT_BE_INSTANTIATED = " should not be instantiated";
     
     /** Each method invocation has its own identifier. It starts from 1 when an instrumented application launched. It is public because it used in a code generation. */
     public static AtomicLong methodInvocationCounter = new AtomicLong(0L); // NOSONAR
@@ -34,8 +36,8 @@ public class MethodInterceptor {
     /**
      * The constructor should newer be invoked. It throws an {@link IllegalStateException}.
      */
-    private MethodInterceptor() {
-        throw new IllegalStateException("The class " + MethodInterceptor.class.getName() + " should not be instantiated");
+    MethodInterceptor() {
+        throw new IllegalStateException("The class " + MethodInterceptor.class.getName() + SHOULD_NOT_BE_INSTANTIATED);
     }
     
     /**

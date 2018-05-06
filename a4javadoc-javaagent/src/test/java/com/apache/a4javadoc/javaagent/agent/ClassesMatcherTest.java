@@ -6,28 +6,41 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.lang.reflect.Field;
-
 import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.Spy;
+import org.mockito.runners.MockitoJUnitRunner;
 
 import com.apache.a4javadoc.javaagent.agent.namefilter.NameFilterService;
+import com.apache.a4javadoc.javaagent.test.TestService;
 
 import net.bytebuddy.description.type.TypeDescription;
 
 /** 
  * @author Kyrylo Semenko
  */
+@RunWith(MockitoJUnitRunner.class)
 public class ClassesMatcherTest {
+    
+    @Spy
+    NameFilterService nameFilterService = NameFilterService.getInstance();
+    
+    /**
+     * Set the mocked instance
+     */
+    @Before
+    public void before() {
+        TestService.setMockInstance(nameFilterService, NameFilterService.class, "instance");
+    }
+    
     /**
      * Remove the mocked instance
-     * @throws Exception if the instance could not be accessible
      */
     @After
-    public void resetSingleton() throws Exception {
-       Field instance = NameFilterService.class.getDeclaredField("instance");
-       instance.setAccessible(true);
-       instance.set(null, null);
+    public void resetSingleton() {
+        TestService.setMockInstance(nameFilterService, NameFilterService.class, "instance");
     }
 
     /**
@@ -46,13 +59,21 @@ public class ClassesMatcherTest {
      */
     @Test
     public void testMatches() {
-        NameFilterService nameFilterService = mock(NameFilterService.class);
         when(nameFilterService.matches((String) any())).thenReturn(true);
-        NameFilterService.setMockInstance(nameFilterService); 
+
         TypeDescription typeDescription = mock(TypeDescription.class);
         when(typeDescription.getName()).thenReturn("");
+        
         boolean result = new ClassesMatcher().matches(typeDescription, null, null, null, null);
         assertTrue("result should be true, because mock returned true", result);
+        
+        
+        when(nameFilterService.matches((String) any())).thenReturn(false);
+        
+        boolean resultFalse = new ClassesMatcher().matches(typeDescription, null, null, null, null);
+        assertFalse("result should be false, because mock returned true", resultFalse);
+        
+        
     }
 
 }

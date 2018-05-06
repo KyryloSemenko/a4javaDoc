@@ -6,6 +6,7 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
 import java.util.List;
 
+import org.apache.commons.io.FilenameUtils;
 import org.pf4j.AbstractPluginManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,10 +29,15 @@ import net.bytebuddy.utility.JavaModule;
  */
 public class Agent {
     
+    public static final String JAR_FILE_EXTENSION = ".jar";
+
     private static final Logger logger = LoggerFactory.getLogger(Agent.class);
     
-    /** a4javadoc.jar file name */
-    public static final String A4JAVADOC_JAR_NAME = "a4javadoc.jar";
+    /** The first path of a jar name */
+    public static final String A4JAVADOC = "a4javadoc";
+    
+    /** The second path of a jar name */
+    public static final String JAAVAGENT = "-javaagent";
 
     static final String CANNOT_CREATE_PLUGINS_DIRECTORY = "Cannot create plugins directory '";
 
@@ -122,7 +128,7 @@ public class Agent {
      */
     File findJavaagentDir(List<String> arguments) {
         for (String arg : arguments) {
-            if (arg.startsWith(JAVAAGENT_ARGS_PREFIX) && arg.contains(A4JAVADOC_JAR_NAME)) {
+            if (FilenameUtils.wildcardMatch(arg, JAVAAGENT_ARGS_PREFIX + "*" + A4JAVADOC + JAAVAGENT + "*" + JAR_FILE_EXTENSION)) {
                 int beginIndex = JAVAAGENT_ARGS_PREFIX.length();
                 File file = new File(arg.substring(beginIndex));
                 return file.getParentFile();

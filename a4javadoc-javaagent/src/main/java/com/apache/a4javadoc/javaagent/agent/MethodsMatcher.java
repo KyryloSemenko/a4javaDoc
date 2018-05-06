@@ -39,14 +39,6 @@ public class MethodsMatcher<T extends MethodDescription> extends ElementMatcher.
         logger.info("Construction of MethodsMatcher started");
     }
 
-    /**
-     * For test purposes. Don't use the method please.
-     * @param mock the mocked instance for test purposes.
-     */
-    public static void setMockInstance(MethodsMatcher<? super MethodDescription> mock) {
-        instance = mock;
-    }
-
     /** 
      * @see net.bytebuddy.matcher.ElementMatcher#matches(java.lang.Object)
      */
