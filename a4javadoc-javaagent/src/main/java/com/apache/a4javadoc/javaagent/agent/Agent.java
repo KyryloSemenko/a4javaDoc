@@ -12,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.apache.a4javadoc.exception.AppRuntimeException;
+import com.apache.a4javadoc.javaagent.parameter.ParameterService;
 
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.agent.builder.AgentBuilder.Default;
@@ -29,6 +30,9 @@ import net.bytebuddy.utility.JavaModule;
  */
 public class Agent {
     
+    private static final String EQUALS_SIGN_DELIMITER = "=";
+
+    /** Extension of a .jar file with a dot */
     public static final String JAR_FILE_EXTENSION = ".jar";
 
     private static final Logger logger = LoggerFactory.getLogger(Agent.class);
@@ -56,7 +60,11 @@ public class Agent {
      * @param instrumentation see the {@link Instrumentation} javaDoc
      */
     public static void premain(String args, Instrumentation instrumentation) {
+        RuntimeMXBean runtimeMxBean = ManagementFactory.getRuntimeMXBean();
+        List<String> jvmArguments = runtimeMxBean.getInputArguments();
+        logger.info("JVM arguments: {}", jvmArguments);
         Agent agent = new Agent();
+        ParameterService.getInstance().loadParameters(args, agent.findJavaagentDir(jvmArguments));
         AgentBuilder.Default agentBuilderDefault = new AgentBuilder.Default();
         agent.doPremain(args, instrumentation, agentBuilderDefault);
     }
@@ -72,10 +80,9 @@ public class Agent {
         logger.info("Premain args: {}", args);
         
         RuntimeMXBean runtimeMxBean = ManagementFactory.getRuntimeMXBean();
-        List<String> arguments = runtimeMxBean.getInputArguments();
-        logger.info("JVM arguments: {}", arguments);
+        List<String> jvmArguments = runtimeMxBean.getInputArguments();
         
-        initPluginsDirectory(arguments);
+        initPluginsDirectory(jvmArguments);
         
         final AsmVisitorWrapper methodsVisitor = Advice
                 .to(MethodInterceptor.class)
@@ -100,12 +107,13 @@ public class Agent {
 
     /**
      * Users of the {@link Agent} can specify a {@link #PF4J_PLUGINS_DIR} where plugins are installed, for example in java args <i>-Dpf4j.pluginsDir=/usr/bin/a4javadoc/myPlugins</i>.<br>
-     * In case when {@link System} property {@link #PF4J_PLUGINS_DIR} is not defined, the method sets the property.<br>
+     * In case when {@link System} property {@link #PF4J_PLUGINS_DIR} is not set, the method sets the property.<br>
      * The value of the property will be set to a directory {@link #PLUGINS_DIRECTORY_DEFAULT_NAME} inside the directory where a4javadoc-javaagent.jar is located. 
+     * @param jvmArguments JVM arguments of the application
      */
-    void initPluginsDirectory(List<String> arguments) {
+    void initPluginsDirectory(List<String> jvmArguments) {
         if (System.getProperty(PF4J_PLUGINS_DIR) == null) {
-            File javaagentParentDirectory = findJavaagentDir(arguments);
+            File javaagentParentDirectory = findJavaagentDir(jvmArguments);
             File pluginsDirectory = new File(javaagentParentDirectory, PLUGINS_DIRECTORY_DEFAULT_NAME);
             if (!pluginsDirectory.exists()) {
                 boolean isDirCreated = pluginsDirectory.mkdirs();
@@ -123,18 +131,22 @@ public class Agent {
     
     /**
      * Parse JVM arguments and find out *javaagent*.jar directory.<br>
-     * @param arguments for example <pre>-javaagent:c:\Users\Joe\temp\a4javadoc-javaagent-0.0.1.jar ...</pre>
+     * @param jvmArguments for example <pre>-javaagent:c:\Users\Joe\temp\a4javadoc-javaagent-0.0.1.jar=c:\temp\a4javadoc\config.properties ...</pre>
      * @return for example <b>c:\Users\Joe\temp</b>
      */
-    File findJavaagentDir(List<String> arguments) {
-        for (String arg : arguments) {
-            if (FilenameUtils.wildcardMatch(arg, JAVAAGENT_ARGS_PREFIX + "*" + A4JAVADOC + JAAVAGENT + "*" + JAR_FILE_EXTENSION)) {
+    File findJavaagentDir(List<String> jvmArguments) {
+        for (String arg : jvmArguments) {
+            if (FilenameUtils.wildcardMatch(arg, JAVAAGENT_ARGS_PREFIX + "*" + A4JAVADOC + JAAVAGENT + "*" + JAR_FILE_EXTENSION + "*")) {
                 int beginIndex = JAVAAGENT_ARGS_PREFIX.length();
-                File file = new File(arg.substring(beginIndex));
+                int endIndex = arg.indexOf(EQUALS_SIGN_DELIMITER);
+                if (endIndex == -1) {
+                    endIndex = arg.length();
+                }
+                File file = new File(arg.substring(beginIndex, endIndex));
                 return file.getParentFile();
             }
         }
-        throw new AppRuntimeException(CANNOT_FIND + JAVAAGENT_ARGS_PREFIX + "' in arguments '" + arguments + "'");
+        throw new AppRuntimeException(CANNOT_FIND + JAVAAGENT_ARGS_PREFIX + "' in arguments '" + jvmArguments + "'");
     }
 
 }

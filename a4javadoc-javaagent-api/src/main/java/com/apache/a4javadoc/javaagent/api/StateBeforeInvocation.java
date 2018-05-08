@@ -14,9 +14,6 @@ public class StateBeforeInvocation {
     /** Date of the instrumented method invocation */
     private Date date;
     
-    /** The current {@link StackTraceElement}s for tracking the method history */
-    private StackTraceElement[] stackTrace;
-    
     /** The invoked method name, <i>clinit</i> for a static initialization block, <i>init</i> for a constructors */
     private String methodName;
     
@@ -37,6 +34,9 @@ public class StateBeforeInvocation {
     
     /** The invoked method parameters */
     private Object[] allArguments;
+    
+    /** The current {@link StackTraceElement}s for tracking the method history */
+    private StackTraceElement[] stackTrace;
 
     /**
      * @param methodInvocationId see the {@link #methodInvocationId} field
@@ -91,16 +91,6 @@ public class StateBeforeInvocation {
     /** @param date see the {@link StateBeforeInvocation#date} field */
     public void setDate(Date date) {
         this.date = date;
-    }
-
-    /** @return The {@link StateBeforeInvocation#stackTrace} field */
-    public StackTraceElement[] getStackTrace() {
-        return stackTrace;
-    }
-
-    /** @param stackTrace see the {@link StateBeforeInvocation#stackTrace} field */
-    public void setStackTrace(StackTraceElement[] stackTrace) {
-        this.stackTrace = stackTrace;
     }
 
     /** @return The {@link StateBeforeInvocation#methodName} field */
@@ -171,6 +161,16 @@ public class StateBeforeInvocation {
     /** @param allArguments see the {@link StateBeforeInvocation#allArguments} field */
     public void setAllArguments(Object[] allArguments) {
         this.allArguments = allArguments;
+    }
+    
+    /** @return The {@link StateBeforeInvocation#stackTrace} field */
+    public StackTraceElement[] getStackTrace() {
+        return stackTrace;
+    }
+    
+    /** @param stackTrace see the {@link StateBeforeInvocation#stackTrace} field */
+    public void setStackTrace(StackTraceElement[] stackTrace) {
+        this.stackTrace = stackTrace;
     }
 
 }

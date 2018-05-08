@@ -1,5 +1,6 @@
 package com.apache.a4javadoc.javaagent.agent;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyList;
@@ -48,6 +49,19 @@ public class AgentTest {
     
     @Mock
     private AgentBuilder.Default agentBuilderDefault;
+    
+    /**
+     * Test method for {@link com.apache.a4javadoc.javaagent.agent.Agent#findJavaagentDir(List)}.
+     * @throws Exception
+     */
+    @Test
+    public void findJavaagentTest() throws Exception {
+        Agent agent = spy(new Agent());
+        File agentFile = temporaryFolder.newFile("a4javadoc-javaagent.jar");
+        List<String> jvmArguments = Arrays.asList("-javaagent:" + agentFile.getAbsolutePath() + "=c:\\temp\\a4javadoc\\config.properties");
+        File dir = agent.findJavaagentDir(jvmArguments);
+        assertEquals(agentFile.getParentFile().getAbsolutePath(), dir.getAbsolutePath());
+    }
     
     /**
      * Test method for {@link com.apache.a4javadoc.javaagent.agent.Agent#initPluginsDirectory(List)}.

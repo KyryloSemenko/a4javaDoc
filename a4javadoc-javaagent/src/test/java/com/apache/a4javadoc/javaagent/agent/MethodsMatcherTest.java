@@ -10,7 +10,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Spy;
+import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
 
 import com.apache.a4javadoc.javaagent.agent.namefilter.NameFilterService;
@@ -29,8 +29,8 @@ import net.bytebuddy.description.type.TypeDescription.Generic;
 @RunWith(MockitoJUnitRunner.class)
 public class MethodsMatcherTest {
     
-    @Spy
-    NameFilterService nameFilterService = NameFilterService.getInstance();
+    @Mock
+    NameFilterService nameFilterService;
     
     /**
      * Set the mocked instance

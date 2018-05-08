@@ -10,10 +10,11 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Spy;
+import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
 
 import com.apache.a4javadoc.javaagent.agent.namefilter.NameFilterService;
+import com.apache.a4javadoc.javaagent.parameter.ParameterService;
 import com.apache.a4javadoc.javaagent.test.TestService;
 
 import net.bytebuddy.description.type.TypeDescription;
@@ -24,8 +25,11 @@ import net.bytebuddy.description.type.TypeDescription;
 @RunWith(MockitoJUnitRunner.class)
 public class ClassesMatcherTest {
     
-    @Spy
-    NameFilterService nameFilterService = NameFilterService.getInstance();
+    @Mock
+    NameFilterService nameFilterService;
+    
+    @Mock
+    ParameterService parameterService;
     
     /**
      * Set the mocked instance
@@ -33,6 +37,7 @@ public class ClassesMatcherTest {
     @Before
     public void before() {
         TestService.setMockInstance(nameFilterService, NameFilterService.class, "instance");
+        TestService.setMockInstance(parameterService, ParameterService.class, "instance");
     }
     
     /**
@@ -40,7 +45,8 @@ public class ClassesMatcherTest {
      */
     @After
     public void resetSingleton() {
-        TestService.setMockInstance(nameFilterService, NameFilterService.class, "instance");
+        TestService.setMockInstance(null, NameFilterService.class, "instance");
+        TestService.setMockInstance(null, ParameterService.class, "instance");
     }
 
     /**
@@ -48,6 +54,8 @@ public class ClassesMatcherTest {
      */
     @Test
     public void testNotMatches() {
+        when(parameterService.getProperty(NameFilterService.PROPERTY_INCLUDE_NAMES)).thenReturn("");
+        when(parameterService.getProperty(NameFilterService.PROPERTY_EXCLUDE_NAMES)).thenReturn("");
         TypeDescription typeDescription = mock(TypeDescription.class);
         when(typeDescription.getName()).thenReturn("");
         boolean result = new ClassesMatcher().matches(typeDescription, null, null, null, null);
