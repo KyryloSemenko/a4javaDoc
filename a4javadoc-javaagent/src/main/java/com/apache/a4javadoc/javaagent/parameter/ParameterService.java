@@ -17,6 +17,10 @@ import com.apache.a4javadoc.exception.AppRuntimeException;
  * @author Kyrylo Semenko
  */
 public class ParameterService {
+    static final String THE_PROPERTY_WITH_KEY = "The property with key '";
+
+    static final String PROPERTIES_IS_NULL = "'properties' is null.";
+
     static final String THE_FILE_COULD_NOT_BE_FOUND = "The file could not be found: ";
 
     private static final Logger logger = LoggerFactory.getLogger(ParameterService.class);
@@ -32,7 +36,7 @@ public class ParameterService {
     }
 
     /** Configuration properties loaded from a file */
-    private Properties properties;
+    Properties properties;
     
     /**
      * An empty private constructor
@@ -82,10 +86,10 @@ public class ParameterService {
      */
     public String getProperty(String propertyName) {
         if (properties == null) {
-            throw new AppRuntimeException("'properties' is null.");
+            throw new AppRuntimeException(PROPERTIES_IS_NULL);
         }
         if (!properties.containsKey(propertyName)) {
-            throw new AppRuntimeException("The property with key '" + propertyName + "' could not be found");
+            throw new AppRuntimeException(THE_PROPERTY_WITH_KEY + propertyName + "' could not be found");
         }
         return properties.getProperty(propertyName);
     }
