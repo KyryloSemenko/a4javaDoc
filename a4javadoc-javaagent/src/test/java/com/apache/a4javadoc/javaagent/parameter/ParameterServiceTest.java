@@ -2,6 +2,7 @@ package com.apache.a4javadoc.javaagent.parameter;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 
 import java.io.File;
 import java.util.Properties;
@@ -80,16 +81,15 @@ public class ParameterServiceTest {
     
     /**
      * Test method for {@link ParameterService#getProperty(String)}.
-     * The case when properties loaded, but the key could not be found.
+     * The case when properties loaded, but the key could not be found. The method should return null.
      */
     @Test
     public void testGetPropertyNotFound() {
-        expectedException.expect(AppRuntimeException.class);
-        expectedException.expectMessage(ParameterService.THE_PROPERTY_WITH_KEY);
         Properties properties = new Properties();
         ParameterService parameterService = ParameterService.getInstance();
         Whitebox.setInternalState(parameterService, "properties", properties);
-        ParameterService.getInstance().getProperty("non existing");
+        String result = ParameterService.getInstance().getProperty("non existing");
+        assertNull("The method should return null", result);
     }
     
     /**

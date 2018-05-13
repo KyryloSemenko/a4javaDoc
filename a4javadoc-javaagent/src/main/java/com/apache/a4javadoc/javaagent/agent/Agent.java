@@ -120,7 +120,9 @@ public class Agent {
                 if (isDirCreated) {
                     logger.info("Plugins directory created: '{}'", pluginsDirectory.getAbsolutePath());
                 } else {
-                    throw new AppRuntimeException(CANNOT_CREATE_PLUGINS_DIRECTORY + pluginsDirectory.getAbsolutePath() + "'");
+                    String message = CANNOT_CREATE_PLUGINS_DIRECTORY + pluginsDirectory.getAbsolutePath() + "'";
+                    logger.error(message);
+                    throw new AppRuntimeException(message);
                 }
             } else {
                 logger.info("Plugins directory already exists: '{}'", pluginsDirectory.getAbsolutePath());
@@ -146,7 +148,9 @@ public class Agent {
                 return file.getParentFile();
             }
         }
-        throw new AppRuntimeException(CANNOT_FIND + JAVAAGENT_ARGS_PREFIX + "' in arguments '" + jvmArguments + "'");
+        String message = CANNOT_FIND + JAVAAGENT_ARGS_PREFIX + "' in arguments '" + jvmArguments + "'";
+        logger.error(message);
+        throw new AppRuntimeException(message);
     }
 
 }

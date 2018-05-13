@@ -17,7 +17,6 @@ import com.apache.a4javadoc.exception.AppRuntimeException;
  * @author Kyrylo Semenko
  */
 public class ParameterService {
-    static final String THE_PROPERTY_WITH_KEY = "The property with key '";
 
     static final String PROPERTIES_IS_NULL = "'properties' is null.";
 
@@ -58,38 +57,42 @@ public class ParameterService {
      * @return {@link #properties} field for test purposes
      */
     public Properties loadParameters(String filePath, File javaagentParentDirectory) {
-           try {
-               logger.info("args: {}", filePath);
-               this.properties = new Properties();
-               final Path path = Paths.get(filePath);
-               if (Files.exists(path)) {
-                   properties.load(new FileInputStream(filePath));
-                   return this.properties;
-               }
-               
-               File file = new File(javaagentParentDirectory, filePath);
-               if (!file.exists()) {
-                   throw new AppRuntimeException(THE_FILE_COULD_NOT_BE_FOUND + file.getAbsolutePath());
-               }
-               
-               properties.load(new FileInputStream(file));
-               return this.properties;
+        try {
+            logger.info("args: {}", filePath);
+            this.properties = new Properties();
+            final Path path = Paths.get(filePath);
+            if (Files.exists(path)) {
+                properties.load(new FileInputStream(filePath));
+                return this.properties;
+            }
+
+            File file = new File(javaagentParentDirectory, filePath);
+            if (!file.exists()) {
+                String message = THE_FILE_COULD_NOT_BE_FOUND + file.getAbsolutePath();
+                logger.error(message);
+                throw new AppRuntimeException(message);
+            }
+
+            properties.load(new FileInputStream(file));
+            return this.properties;
         } catch (Exception e) {
+            logger.error(e.getMessage());
             throw new AppRuntimeException(e);
         }
     }
 
     /**
-     * Find out a property from {@link #properties}. Throw {@link AppRuntimeException} if the property could not be found.
+     * Find out a property from {@link #properties}.
      * @param propertyName the property key
-     * @return the property value
+     * @return the property value. Return <b>null</b> if the property could not be found.
      */
     public String getProperty(String propertyName) {
         if (properties == null) {
+            logger.error(PROPERTIES_IS_NULL);
             throw new AppRuntimeException(PROPERTIES_IS_NULL);
         }
         if (!properties.containsKey(propertyName)) {
-            throw new AppRuntimeException(THE_PROPERTY_WITH_KEY + propertyName + "' could not be found");
+            return null;
         }
         return properties.getProperty(propertyName);
     }

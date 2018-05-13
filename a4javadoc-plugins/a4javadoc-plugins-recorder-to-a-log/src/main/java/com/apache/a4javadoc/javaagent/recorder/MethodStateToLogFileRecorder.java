@@ -1,16 +1,21 @@
 package com.apache.a4javadoc.javaagent.recorder;
 
 import java.io.StringWriter;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.AbstractMap;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 
 import org.pf4j.Extension;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.apache.a4javadoc.exception.AppRuntimeException;
 import com.apache.a4javadoc.javaagent.api.MethodStateRecorder;
 import com.apache.a4javadoc.javaagent.api.StateAfterInvocation;
 import com.apache.a4javadoc.javaagent.api.StateBeforeInvocation;
@@ -23,6 +28,9 @@ import com.apache.a4javadoc.javaagent.mapper.ObjectMapperA4j;
 @Extension
 public class MethodStateToLogFileRecorder implements MethodStateRecorder {
     
+    private static final int MAX_NUMBER_OF_STACK_TRACE_ELEMENTS = 25;
+    static final String REMOVED_BECAUSE_THE_OBJECT_CONTAINED_A_CIRCULAR_DEPENDENCY = "Removed because the object contained a circular dependency.";
+    private static final int MAX_DEPTH_OF_DIVING_INTO_OBJECT = 7;
     private static final Logger logger = LoggerFactory.getLogger(MethodStateToLogFileRecorder.class);
     
     /** Constructor */
@@ -33,21 +41,19 @@ public class MethodStateToLogFileRecorder implements MethodStateRecorder {
     @Override
     public void recordBefore(StateBeforeInvocation stateBeforeInvocation) {
         truncateStackTrace(stateBeforeInvocation);
+        removeCircularObjects(stateBeforeInvocation.getAllArguments());
+        logger.info("Method starts: {}", stateBeforeInvocation.getMethodComplexName());
         StringWriter stringWriter = new StringWriter().append("State before: ");
         ObjectMapperA4j.getInstance().writeValue(stringWriter, stateBeforeInvocation);
         if (logger.isInfoEnabled()) {
             logger.info(stringWriter.toString());
         }
     }
-    
-    /** Find out the first closest caller of the method */
-    private void truncateStackTrace(StateBeforeInvocation stateBeforeInvocation) {
-//        for ()
-        //TODO Kyrylo Semenko
-    }
 
     @Override
     public void recordAfter(StateAfterInvocation stateAfterInvocation) {
+        logger.info("Method ended: {}", stateAfterInvocation.getMethodComplexName());
+        removeCircularObjects(stateAfterInvocation.getAllArguments());
         StringWriter stringWriter = new StringWriter().append("State   after: ");
         ObjectMapperA4j.getInstance().writeValue(stringWriter, stateAfterInvocation);
         if (logger.isInfoEnabled()) {
@@ -55,6 +61,76 @@ public class MethodStateToLogFileRecorder implements MethodStateRecorder {
         }
     }
     
+    /** Find out the first closest caller of the method */
+    private void truncateStackTrace(StateBeforeInvocation stateBeforeInvocation) {
+        StackTraceElement[] stackTraceElements = stateBeforeInvocation.getStackTrace();
+        if (stackTraceElements.length > MAX_NUMBER_OF_STACK_TRACE_ELEMENTS) {
+            StackTraceElement[] copy = Arrays.copyOfRange(stackTraceElements, 0, MAX_NUMBER_OF_STACK_TRACE_ELEMENTS);
+            StackTraceElement stackTraceElement = new StackTraceElement("", "Other elements has been removed", "", 0);
+            copy[MAX_NUMBER_OF_STACK_TRACE_ELEMENTS - 1] = stackTraceElement;
+            stateBeforeInvocation.setStackTrace(copy);
+        }
+    }
+    
+    // TODO Kyrylo Semenko naucit se serializovat circular objects a smazat metodu
+    void removeCircularObjects(Object[] allArguments) {
+        for (int i = 0; i < allArguments.length; i++) {
+            
+            if (hasCircularDependency(allArguments[i])) {
+                allArguments[i] = REMOVED_BECAUSE_THE_OBJECT_CONTAINED_A_CIRCULAR_DEPENDENCY;
+            }
+        }
+    }
+
+    // TODO Kyrylo Semenko naucit se serializovat circular objects a smazat metodu
+    private boolean hasCircularDependency(Object object) {
+        if (object == null) {
+            return false;
+        }
+        Map<String, Object> map = new HashMap<>();
+        map.putAll(getAllFields(object, object.getClass().getSimpleName(), 1));
+        List<String> keys = new ArrayList<>(map.keySet());
+        for (int i = 0; i < keys.size(); i++) {
+            String key = keys.get(i);
+            Object value = map.get(key);
+            if (value != null) {
+                for (int k = i + 1; k < keys.size(); k++) {
+                    String keyInner = keys.get(k);
+                    Object valueInner = map.get(keyInner);
+                    if (value.equals(valueInner)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    // TODO Kyrylo Semenko naucit se serializovat circular objects a smazat metodu
+    private Map<String, Object> getAllFields(Object object, String prefix, int depth) {
+        try {
+            Map<String, Object> map = new HashMap<>();
+            if (object == null) {
+                return map;
+            }
+            Field[] fields = object.getClass().getDeclaredFields();
+            for (Field field : fields) {
+                if (!field.getType().isPrimitive()) {
+                    String newPrefix = prefix + "." + field.getName();
+                    field.setAccessible(true);
+                    Object newObject = field.get(object);
+                    map.put(newPrefix, newObject);
+                    if (depth < MAX_DEPTH_OF_DIVING_INTO_OBJECT) {
+                        map.putAll(getAllFields(newObject, newPrefix, depth + 1));
+                    }
+                }
+            }
+            return map;
+        } catch (Exception e) {
+            throw new AppRuntimeException(e);
+        }
+    }
+
     /**
      * @param instrumentedMethod contains a type
      * @param result contains a value
