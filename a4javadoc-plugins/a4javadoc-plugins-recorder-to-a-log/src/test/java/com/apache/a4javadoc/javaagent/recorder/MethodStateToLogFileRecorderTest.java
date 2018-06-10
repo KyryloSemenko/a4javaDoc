@@ -1,10 +1,10 @@
 package com.apache.a4javadoc.javaagent.recorder;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
 
-import com.apache.a4javadoc.javaagent.mapper.CircularClass;
+import com.apache.a4javadoc.javaagent.mapper.WrapperClass;
 
 /** 
  * @author Kyrylo Semenko
@@ -16,7 +16,7 @@ public class MethodStateToLogFileRecorderTest {
      */
     @Test
     public void testRemoveCircularObjects() {
-        CircularClass child = new CircularClass();
+        WrapperClass child = new WrapperClass();
         child.setId(2);
         child.setParent(child);
         

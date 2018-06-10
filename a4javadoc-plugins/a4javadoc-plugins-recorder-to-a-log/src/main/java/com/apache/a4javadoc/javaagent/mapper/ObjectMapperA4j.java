@@ -5,6 +5,7 @@ import java.io.Writer;
 import com.apache.a4javadoc.exception.AppRuntimeException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 
 /**
  * Proxy for {@link ObjectMapper}. Contains a single instance of {@link #objectMapper}.
@@ -21,6 +22,17 @@ public class ObjectMapperA4j {
     private ObjectMapperA4j() {
         objectMapper = new ObjectMapper();
         objectMapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
+        
+        GenericSerializerProvider genericSerializerProvider = new GenericSerializerProvider();
+        objectMapper.setSerializerProvider(genericSerializerProvider);
+        
+        SimpleModule moduleSerializer = new SimpleModule();
+        moduleSerializer.addSerializer(Object.class, new GenericSerializer());
+        objectMapper.registerModule(moduleSerializer);
+        
+        SimpleModule moduleDeserializer = new SimpleModule();
+        moduleDeserializer.addDeserializer(Object.class, new GenericDeserializer());
+        objectMapper.registerModule(moduleDeserializer);
     }
     
     /**
@@ -45,6 +57,20 @@ public class ObjectMapperA4j {
         }
         try {
             objectMapper.writeValue(writer, value);
+        } catch (Exception e) {
+            throw new AppRuntimeException(e);
+        }
+    }
+    
+    /**
+     * Calls a {@link ObjectMapper#readValue(String, Class)} method
+     * @param content see a {@link ObjectMapper#readValue(String, Class)} method
+     * @param valueType see a {@link ObjectMapper#readValue(String, Class)} method
+     * @return a deserialized object
+     */
+    public <T> T readValue(String content, Class<T> valueType) {
+        try {
+            return objectMapper.readValue(content, valueType);
         } catch (Exception e) {
             throw new AppRuntimeException(e);
         }

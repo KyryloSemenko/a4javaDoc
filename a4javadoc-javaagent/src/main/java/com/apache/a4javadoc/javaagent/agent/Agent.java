@@ -94,7 +94,7 @@ public class Agent {
         
         agentBuilderDefault
 //            .with(AgentBuilder.Listener.WithErrorsOnly.StreamWriting.toSystemError())
-            .type(new ClassesMatcher())
+            .type(ElementMatchers.any())
             .transform(new AgentBuilder.Transformer() {
                 public Builder<?> transform(Builder<?> builder, TypeDescription typeDescription, ClassLoader classLoader, JavaModule module) {
                     return builder.visit(methodsVisitor).visit(constructorsVisitor);

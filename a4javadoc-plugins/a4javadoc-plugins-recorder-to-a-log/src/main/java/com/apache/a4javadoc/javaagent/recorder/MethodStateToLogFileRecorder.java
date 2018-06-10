@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import org.apache.commons.lang3.ClassUtils;
 import org.pf4j.Extension;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,9 +29,13 @@ import com.apache.a4javadoc.javaagent.mapper.ObjectMapperA4j;
 @Extension
 public class MethodStateToLogFileRecorder implements MethodStateRecorder {
     
+    private static final String STATE_BEFORE =  "State  before: ";
+    private static final String METHOD_STARTS = "Method starts: ";
+    private static final String STATE_AFTER =   "State   after: ";
+    private static final String METHOD_ENDED =  "Method  ended: ";
     private static final int MAX_NUMBER_OF_STACK_TRACE_ELEMENTS = 25;
     static final String REMOVED_BECAUSE_THE_OBJECT_CONTAINED_A_CIRCULAR_DEPENDENCY = "Removed because the object contained a circular dependency.";
-    private static final int MAX_DEPTH_OF_DIVING_INTO_OBJECT = 7;
+    private static final int MAX_DEPTH_OF_DIVING_INTO_OBJECT = 50;
     private static final Logger logger = LoggerFactory.getLogger(MethodStateToLogFileRecorder.class);
     
     /** Constructor */
@@ -40,10 +45,11 @@ public class MethodStateToLogFileRecorder implements MethodStateRecorder {
     
     @Override
     public void recordBefore(StateBeforeInvocation stateBeforeInvocation) {
-        truncateStackTrace(stateBeforeInvocation);
+        StackTraceElement[] truncated = truncateStackTrace(stateBeforeInvocation.getStackTrace());
+        stateBeforeInvocation.setStackTrace(truncated);
         removeCircularObjects(stateBeforeInvocation.getAllArguments());
-        logger.info("Method starts: {}", stateBeforeInvocation.getMethodComplexName());
-        StringWriter stringWriter = new StringWriter().append("State before: ");
+        logger.info("{}{}", METHOD_STARTS, stateBeforeInvocation.getMethodComplexName());
+        StringWriter stringWriter = new StringWriter().append(STATE_BEFORE);
         ObjectMapperA4j.getInstance().writeValue(stringWriter, stateBeforeInvocation);
         if (logger.isInfoEnabled()) {
             logger.info(stringWriter.toString());
@@ -52,24 +58,30 @@ public class MethodStateToLogFileRecorder implements MethodStateRecorder {
 
     @Override
     public void recordAfter(StateAfterInvocation stateAfterInvocation) {
-        logger.info("Method ended: {}", stateAfterInvocation.getMethodComplexName());
+        logger.info("{}{}", METHOD_ENDED, stateAfterInvocation.getMethodComplexName());
+        if (stateAfterInvocation.getThrowable() != null) {
+            logger.error("Throwable after method invocation: " + stateAfterInvocation.getThrowable().getMessage(), stateAfterInvocation.getThrowable());
+            StackTraceElement[] stackTraceElements = stateAfterInvocation.getThrowable().getStackTrace();
+            StackTraceElement[] truncated = truncateStackTrace(stackTraceElements);
+            stateAfterInvocation.getThrowable().setStackTrace(truncated);
+        }
         removeCircularObjects(stateAfterInvocation.getAllArguments());
-        StringWriter stringWriter = new StringWriter().append("State   after: ");
+        StringWriter stringWriter = new StringWriter().append(STATE_AFTER);
         ObjectMapperA4j.getInstance().writeValue(stringWriter, stateAfterInvocation);
         if (logger.isInfoEnabled()) {
             logger.info(stringWriter.toString());
         }
     }
     
-    /** Find out the first closest caller of the method */
-    private void truncateStackTrace(StateBeforeInvocation stateBeforeInvocation) {
-        StackTraceElement[] stackTraceElements = stateBeforeInvocation.getStackTrace();
+    /** Truncate to {@link #MAX_NUMBER_OF_STACK_TRACE_ELEMENTS} */
+    StackTraceElement[] truncateStackTrace(StackTraceElement[] stackTraceElements) {
+        StackTraceElement[] truncated = stackTraceElements;
         if (stackTraceElements.length > MAX_NUMBER_OF_STACK_TRACE_ELEMENTS) {
-            StackTraceElement[] copy = Arrays.copyOfRange(stackTraceElements, 0, MAX_NUMBER_OF_STACK_TRACE_ELEMENTS);
+            truncated = Arrays.copyOfRange(stackTraceElements, 0, MAX_NUMBER_OF_STACK_TRACE_ELEMENTS);
             StackTraceElement stackTraceElement = new StackTraceElement("", "Other elements has been removed", "", 0);
-            copy[MAX_NUMBER_OF_STACK_TRACE_ELEMENTS - 1] = stackTraceElement;
-            stateBeforeInvocation.setStackTrace(copy);
+            truncated[MAX_NUMBER_OF_STACK_TRACE_ELEMENTS - 1] = stackTraceElement;
         }
+        return truncated;
     }
     
     // TODO Kyrylo Semenko naucit se serializovat circular objects a smazat metodu
@@ -115,7 +127,7 @@ public class MethodStateToLogFileRecorder implements MethodStateRecorder {
             }
             Field[] fields = object.getClass().getDeclaredFields();
             for (Field field : fields) {
-                if (!field.getType().isPrimitive()) {
+                if (!ClassUtils.isPrimitiveOrWrapper(field.getType())) {
                     String newPrefix = prefix + "." + field.getName();
                     field.setAccessible(true);
                     Object newObject = field.get(object);
