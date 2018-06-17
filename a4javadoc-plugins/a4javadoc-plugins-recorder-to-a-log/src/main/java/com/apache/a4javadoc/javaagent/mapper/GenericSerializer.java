@@ -3,10 +3,17 @@ package com.apache.a4javadoc.javaagent.mapper;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 
 import org.apache.commons.lang3.ClassUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.apache.a4javadoc.exception.AppRuntimeException;
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -21,7 +28,11 @@ import com.fasterxml.jackson.databind.ser.std.StdSerializer;
  */
 @SuppressWarnings("serial")
 public class GenericSerializer extends StdSerializer<Object> {
+    private static final Logger logger = LoggerFactory.getLogger(GenericSerializer.class);
     
+    private static final String GETTER_PREFIX = "get";
+
+    /** The key of a primitive or wrapper value */
     public static final String PRIMITIVE_OR_WRAPPER_VALUE = "value";
 
     /** Separator of class name and hash in for example <pre>com.apache.a4javadoc.javaagent.mapper.CircularClass@2d332eab</pre> */
@@ -48,29 +59,35 @@ public class GenericSerializer extends StdSerializer<Object> {
     @Override
     public void serialize(Object sourceObject, JsonGenerator jsonGenerator, SerializerProvider provider) 
       throws IOException {
-        if (sourceObject == null) {
-            jsonGenerator.writeNull();
-            return;
-        }
-        GenericSerializerProvider genericSerializerProvider = (GenericSerializerProvider) provider;
-  
-        jsonGenerator.writeStartObject();
-        String identifier = generateIdentifier(sourceObject);
-        jsonGenerator.writeStringField(GENERIC_KEY_ID, identifier);
-        if (ClassUtils.isPrimitiveOrWrapper(sourceObject.getClass())) {
-            jsonGenerator.writeStringField(PRIMITIVE_OR_WRAPPER_VALUE, sourceObject.toString());
-            jsonGenerator.writeEndObject();
-            return;
-        }
-        if (genericSerializerProvider.getSerializedObjects().contains(sourceObject)) {
-            jsonGenerator.writeEndObject();
-            return;
-        }
-        genericSerializerProvider.getSerializedObjects().add(sourceObject);
+        serializeObject(sourceObject, jsonGenerator, (GenericSerializerProvider) provider, 1, sourceObject, true);
+    }
+
+    /**  */
+    private void serializeObject(Object sourceObject, JsonGenerator jsonGenerator, GenericSerializerProvider genericSerializerProvider, int depth, Object rootObject, boolean appendGenericId) {
+        try {
+            if (sourceObject == null) {
+                jsonGenerator.writeNull();
+                return;
+            }
+      
+            String identifier = generateIdentifier(sourceObject);
         
-        serialize(sourceObject, jsonGenerator, genericSerializerProvider, 1);
-        
-        jsonGenerator.writeEndObject();
+            if (processPrimitiveOrWrapperOrString(jsonGenerator, sourceObject, identifier, appendGenericId)) {
+                return;
+            }
+            if (processArrayOrList(sourceObject, jsonGenerator, genericSerializerProvider, depth, rootObject)) {
+                return;
+            }
+            jsonGenerator.writeStartObject();
+            jsonGenerator.writeStringField(GENERIC_KEY_ID, identifier);
+            genericSerializerProvider.getSerializedObjects().add(sourceObject);
+            
+            serializeSourceObjectFields(sourceObject, jsonGenerator, genericSerializerProvider, depth, rootObject);
+            
+            jsonGenerator.writeEndObject();
+        } catch (Exception e) {
+            throw new AppRuntimeException(e);
+        }
     }
 
     /**
@@ -79,10 +96,11 @@ public class GenericSerializer extends StdSerializer<Object> {
      * @param jsonGenerator json holder
      * @param genericSerializerProvider contains serialization state
      * @param depth depth of dive where 1 is the first level from the root object
+     * @param rootObject top object in object graph
      */
-    private void serialize(Object sourceObject, JsonGenerator jsonGenerator, GenericSerializerProvider genericSerializerProvider, int depth) {
+    private void serializeSourceObjectFields(Object sourceObject, JsonGenerator jsonGenerator, GenericSerializerProvider genericSerializerProvider, int depth, Object rootObject) {
         for (Field field : getFields(sourceObject)) {
-            serializeField(sourceObject, jsonGenerator, genericSerializerProvider, depth, field);
+            serializeField(sourceObject, jsonGenerator, genericSerializerProvider, depth, field, rootObject);
         }
     }
 
@@ -93,8 +111,9 @@ public class GenericSerializer extends StdSerializer<Object> {
      * @param genericSerializerProvider the serialization source
      * @param depth current depth in the root object graph
      * @param field the json source
+     * @param rootObject top object in object graph
      */
-    private void serializeField(Object sourceObject, JsonGenerator jsonGenerator, GenericSerializerProvider genericSerializerProvider, int depth, Field field) {
+    private void serializeField(Object sourceObject, JsonGenerator jsonGenerator, GenericSerializerProvider genericSerializerProvider, int depth, Field field, Object rootObject) {
         try {
             Object fieldObject = getObject(field, sourceObject);
             if (fieldObject == null) {
@@ -102,50 +121,114 @@ public class GenericSerializer extends StdSerializer<Object> {
                 return;
             }
             String identifier = generateIdentifier(fieldObject);
-            if (ClassUtils.isPrimitiveOrWrapper(field.getType())) {
+            if (genericSerializerProvider.getSerializedObjects().contains(fieldObject)) {
                 jsonGenerator.writeFieldName(field.getName());
                 jsonGenerator.writeStartObject();
                 jsonGenerator.writeStringField(GENERIC_KEY_ID, identifier);
-                jsonGenerator.writeStringField(PRIMITIVE_OR_WRAPPER_VALUE, fieldObject.toString());
-                jsonGenerator.writeEndObject();
-                return;
-            }
-            jsonGenerator.writeFieldName(field.getName());
-            jsonGenerator.writeStartObject();
-            jsonGenerator.writeStringField(GENERIC_KEY_ID, identifier);
-            if (genericSerializerProvider.getSerializedObjects().contains(fieldObject)) {
                 jsonGenerator.writeEndObject();
                 return;
             }
             genericSerializerProvider.getSerializedObjects().add(fieldObject);
-            if (depth < genericSerializerProvider.getMaxDepth()) {
-                serialize(fieldObject, jsonGenerator, genericSerializerProvider, depth + 1);
-            }
-            jsonGenerator.writeEndObject();
+            jsonGenerator.writeFieldName(field.getName());
+            
+            // toto asi sem jiz nepatri
+//            if (processArrayOrList(fieldObject, jsonGenerator, genericSerializerProvider, depth, rootObject)) {
+//                return;
+//            }
+//            jsonGenerator.writeStartObject();
+//            jsonGenerator.writeStringField(GENERIC_KEY_ID, identifier);
+//            if (processPrimitiveOrWrapper(jsonGenerator, fieldObject)) {
+//                return;
+//            }
+//            if (depth < genericSerializerProvider.getMaxDepth()) {
+//                serializeSourceObjectFields(fieldObject, jsonGenerator, genericSerializerProvider, depth + 1, rootObject);
+//            } else {
+//                logger.info("Maximum depth {} is reached, this object will not be serialized deeper. Root object: '{}'",
+//                        depth, rootObject.getClass().getCanonicalName());
+//            }
+//            jsonGenerator.writeEndObject();
+            serializeObject(fieldObject, jsonGenerator, genericSerializerProvider, depth, rootObject, false);
         } catch (IOException e) {
             throw new AppRuntimeException("Cannot serialize field. Field.name: " + field.getName() + ", sourceObject: " + sourceObject, e);
         }
     }
 
+    /**  */
+    private boolean processArrayOrList(Object fieldObject, JsonGenerator jsonGenerator, GenericSerializerProvider genericSerializerProvider, int depth, Object rootObject) {
+        try {
+            if (fieldObject instanceof Iterable) {
+                jsonGenerator.writeStartArray();
+                
+                List<Object> objectList = new ArrayList<>();
+                Set<Class<?>> classSet = new HashSet<>();
+                @SuppressWarnings("unchecked")
+                Iterator<Object> iterator = ((Iterable<Object>) fieldObject).iterator();
+                while(iterator.hasNext()) {
+                    Object nextObject = iterator.next();
+                    objectList.add(nextObject);
+                    classSet.add(nextObject.getClass());
+                }
+                for (Object nextObject : objectList) {
+                    serializeObject(nextObject, jsonGenerator, genericSerializerProvider, depth, rootObject, classSet.size() > 1);
+                }
+                
+                jsonGenerator.writeEndArray();
+                return true;
+            }
+            return false;
+        } catch (IOException e) {
+            throw new AppRuntimeException(e);
+        }
+            
+    }
+
+    /**
+     * If the object is primitive or wrapper or String, add its value to jsonGenerator and return 'true',
+     * else do nothing and return 'false';
+     * @param appendGenericId should be {@link #GENERIC_KEY_ID} and {@link #GENERIC_VALUE_SEPARATOR} inserted to JSON?
+     */
+    private boolean processPrimitiveOrWrapperOrString(JsonGenerator jsonGenerator, Object object, String identifier, boolean appendGenericId) throws IOException {
+        if (ClassUtils.isPrimitiveOrWrapper(object.getClass()) || object instanceof String) {
+            if (appendGenericId) {
+                jsonGenerator.writeStartObject();
+                jsonGenerator.writeStringField(GENERIC_KEY_ID, identifier);
+                jsonGenerator.writeStringField(PRIMITIVE_OR_WRAPPER_VALUE, object.toString());
+                jsonGenerator.writeEndObject();
+            } else {
+                jsonGenerator.writeString(object.toString());
+            }
+            return true;
+        }
+        return false;
+    }
+
     /** @return fields from this sourceObjecta and all its parents recursively */
     private List<Field> getFields(Object sourceObject) {
         List<Field> result = new ArrayList<>();
-        for (Class<?> c = sourceObject.getClass(); c != null; c = c.getSuperclass())
-        {
+        for (Class<?> c = sourceObject.getClass(); c != null; c = c.getSuperclass()) {
             Field[] fields = c.getDeclaredFields();
-            for (Field classField : fields)
-            {
-                result.add(classField);
+            for (Field classField : fields) {
+                if (isValidField(classField)) {
+                    result.add(classField);
+                }
             }
         }
         return result;
     }
 
+    /**
+     * @return false if the field is synthetic or static
+     */
+    private boolean isValidField(Field field) {
+        return !field.isSynthetic() && !Modifier.isStatic(field.getModifiers());
+    }
+
     /** Try to obtain field value from getter. If getter not found, set the field accessible and obtain its value from reference. */
     private Object getObject(Field field, Object sourceObject) {
         for (Method method : sourceObject.getClass().getMethods()) {
-            if (method.getName().startsWith("get")
-                    && method.getName().length() == (field.getName().length() + 3)
+            if (method.getParameterTypes().length == 0
+                    && method.getName().startsWith(GETTER_PREFIX)
+                    && method.getName().length() == (field.getName().length() + GETTER_PREFIX.length())
                     && method.getName().toLowerCase().endsWith(field.getName().toLowerCase())) {
                 try {
                     return method.invoke(sourceObject);

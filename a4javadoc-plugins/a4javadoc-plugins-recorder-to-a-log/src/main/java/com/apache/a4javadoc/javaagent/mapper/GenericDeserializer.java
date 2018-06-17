@@ -3,17 +3,16 @@ package com.apache.a4javadoc.javaagent.mapper;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import javax.management.RuntimeErrorException;
-
 import org.apache.commons.lang3.ClassUtils;
-import org.apache.commons.lang3.NotImplementedException;
 import org.apache.commons.lang3.reflect.TypeUtils;
 
 import com.apache.a4javadoc.exception.AppRuntimeException;
@@ -22,108 +21,169 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 
-/** 
+/**
+ * This deserializer can process JSON string created by {@link GenericSerializer}.<br>
+ * It can process circular references in JSON, where some object contains itself somewhere in its object graph.<br>
  * @author Kyrylo Semenko
  */
+@SuppressWarnings("serial")
 public class GenericDeserializer extends StdDeserializer<Object> {
+    
+    /**
+     * Values of this map contains already deserialized objects. The keys of the map contains generic identifiers,
+     * see the {@link GenericSerializer#generateIdentifier(Object)} method.
+     */
     private transient Map<String, Object> deserializedObjects;
     
+    /** The default constructor */
     public GenericDeserializer() {
         this(null); 
         deserializedObjects = new HashMap<>();
     } 
  
-    public GenericDeserializer(Class<?> vc) { 
-        super(vc); 
+    /**
+     * Type of values this deserializer handles. In our case it is {@link Object}.
+     * @param valueClass
+     */
+    public GenericDeserializer(Class<?> valueClass) { 
+        super(valueClass); 
         deserializedObjects = new HashMap<>();
     }
  
     @Override
-    public Object deserialize(JsonParser jsonParser, DeserializationContext deserializationContext) 
-      throws IOException {
-        try {
-            JsonNode rootNode = jsonParser.getCodec().readTree(jsonParser);
-            if (rootNode.isNull()) {
-                return null;
-            }
-            
-            if (rootNode.get(GenericSerializer.GENERIC_KEY_ID) == null) {
-                throw new AppRuntimeException("Root node without defined field with key '" + GenericSerializer.GENERIC_KEY_ID + "' is not accepted. RootNode: " + rootNode);
-            }
-            
-            String a4id = rootNode.get(GenericSerializer.GENERIC_KEY_ID).asText();
-            String className = a4id.substring(0, a4id.indexOf(GenericSerializer.GENERIC_VALUE_SEPARATOR));
-            Class<?> clazz = Class.forName(className);
-            Object instance = clazz.newInstance();
-            if (ClassUtils.isPrimitiveOrWrapper(clazz)) {
-                Method valueOf = clazz.getDeclaredMethod("valueOf", String.class);
-                String jsonValue = rootNode.get("value").textValue();
-                valueOf.invoke(instance, jsonValue);
-                return instance;
-            }   
-            deserializedObjects.put(a4id, instance);
-           
-            deserializeSubFields(rootNode, instance, null);
-            return instance;
-        } catch (Exception e) {
-            throw new AppRuntimeException(e);
+    public Object deserialize(JsonParser jsonParser, DeserializationContext deserializationContext) throws IOException {
+        JsonNode rootNode = jsonParser.getCodec().readTree(jsonParser);
+        
+        if (rootNode.get(GenericSerializer.GENERIC_KEY_ID) == null) {
+            throw new AppRuntimeException("Root node without defined field with key '" + GenericSerializer.GENERIC_KEY_ID + "' is not accepted. RootNode: " + rootNode);
         }
+        
+        return deserializeObject(rootNode);
     }
-    
+
     /**  */
-    private void deserializeSubFields(JsonNode jsonNode, Object parentInstance, String parentFieldName) {
+    private Object deserializeObject(JsonNode currentNode) {
         try {
-            Iterator<String> fieldNames = jsonNode.fieldNames();
-            List<String> fieldNameList = new ArrayList<>();
-            while (fieldNames.hasNext()) {
-                fieldNameList.add(fieldNames.next());
+            Object instance = null;
+            String identifier = currentNode.get(GenericSerializer.GENERIC_KEY_ID).asText();
+            String className = identifier.substring(0, identifier.indexOf(GenericSerializer.GENERIC_VALUE_SEPARATOR));
+            Class<?> clazz = Class.forName(className);
+            Object result = processPrimitiveOrWrapperOrString(currentNode, clazz);
+            if (result != null) {
+                return result;
             }
-            if (fieldNameList.size() == 1) {
-                String a4id = jsonNode.get(GenericSerializer.GENERIC_KEY_ID).asText();
-                Object value = deserializedObjects.get(a4id);
-                setToParent(parentInstance, parentFieldName, value);
-                return;
-            }
-            for (String fieldName : fieldNameList) {
-                if (GenericSerializer.GENERIC_KEY_ID.equals(fieldName)) {
-                    continue;
-                }
-                JsonNode fieldNode = jsonNode.get(fieldName);
-                if (fieldNode.get(GenericSerializer.GENERIC_KEY_ID) == null) {
-                    throw new AppRuntimeException("Root node without defined field with key '" + GenericSerializer.GENERIC_KEY_ID + "' is not accepted. RootNode: " + fieldNode);
-                }
-                String a4id = fieldNode.get(GenericSerializer.GENERIC_KEY_ID).asText();
-                String className = a4id.substring(0, a4id.indexOf(GenericSerializer.GENERIC_VALUE_SEPARATOR));
-                Class<?> clazz = Class.forName(className);
-                Object instance = null;
-                if (ClassUtils.isPrimitiveOrWrapper(clazz)) {
-                    String jsonValue = fieldNode.get(GenericSerializer.PRIMITIVE_OR_WRAPPER_VALUE).textValue();
-                    Constructor<?> constructor = clazz.getConstructor(String.class);
-                    instance = constructor.newInstance(jsonValue);
-                } else {
-                    instance = clazz.newInstance();
-                    deserializeSubFields(fieldNode, instance, fieldName);
-                }
-                setToParent(parentInstance, fieldName, instance);
-            }
+            instance = clazz.newInstance();
+            deserializedObjects.put(identifier, instance);
+            
+            deserializeSubFields(currentNode, instance, null);
+            return instance;
         } catch (Exception e) {
             throw new AppRuntimeException(e);
         }
     }
 
     /**  */
+    private Object processPrimitiveOrWrapperOrString(JsonNode currentNode, Class<?> clazz) throws NoSuchMethodException, InstantiationException, IllegalAccessException, InvocationTargetException {
+        if (clazz.equals(String.class) || ClassUtils.isPrimitiveOrWrapper(clazz)) {
+            return setPrimitiveOrWrapper(currentNode, clazz);
+        }
+        return null;
+    }
+
+    /**  */
+    private Object setPrimitiveOrWrapper(JsonNode rootNode, Class<?> clazz) throws NoSuchMethodException, InstantiationException, IllegalAccessException, InvocationTargetException {
+//        String jsonValue = rootNode.get(GenericSerializer.PRIMITIVE_OR_WRAPPER_VALUE).textValue();
+//        Method valueOf = clazz.getDeclaredMethod("valueOf", String.class);
+//        Object instance = clazz.newInstance();
+//        valueOf.invoke(instance, jsonValue);
+//        return instance;
+        
+      String jsonValue = rootNode.get(GenericSerializer.PRIMITIVE_OR_WRAPPER_VALUE).textValue();
+      Constructor<?> constructor = clazz.getConstructor(String.class);
+      return constructor.newInstance(jsonValue);
+    }
+    
+    /**  
+     * This method calls the {@link #deserializeFields(JsonNode, Object, List)} method, which calls this method recursively.<br>
+     * At first check if the jsonNode contains a single value.
+     * If so, the value is a reference to already deserialized object from {@link #deserializedObjects}. Set it to instance and return.
+     * Else call the {@link #deserializeFields(JsonNode, Object, List)} method. 
+     */
+    private void deserializeSubFields(JsonNode jsonNode, Object parentInstance, String parentFieldName) {
+        try {
+            Iterator<String> fieldNames = jsonNode.fieldNames();
+            List<String> fieldNameList = new ArrayList<>();
+            while (fieldNames.hasNext()) {
+                String fieldName = fieldNames.next();
+                if (GenericSerializer.GENERIC_KEY_ID.equals(fieldName)) {
+                    continue;
+                }
+                fieldNameList.add(fieldName);
+            }
+            if (fieldNameList.isEmpty()) {
+                // this node contains a reference to the previously deserialized object
+                String a4id = jsonNode.get(GenericSerializer.GENERIC_KEY_ID).asText();
+                Object value = deserializedObjects.get(a4id);
+                setToParent(parentInstance, parentFieldName, value);
+                return;
+            }
+            deserializeFields(jsonNode, parentInstance, fieldNameList);
+        } catch (Exception e) {
+            throw new AppRuntimeException(e);
+        }
+    }
+
+    /** TODO Kyrylo Semenko */
+    private void deserializeFields(JsonNode jsonNode, Object parentInstance, List<String> fieldNameList) throws ClassNotFoundException, NoSuchMethodException, InstantiationException, IllegalAccessException, InvocationTargetException {
+        for (String fieldName : fieldNameList) {
+            JsonNode fieldNode = jsonNode.get(fieldName);
+            if (jsonNode.get(fieldName).isNull()) {
+                setToParent(parentInstance, fieldName, null);
+                continue;
+            }
+            JsonNode genericKeyId = fieldNode.get(GenericSerializer.GENERIC_KEY_ID);
+            if (genericKeyId == null) {
+                setToParent(parentInstance, fieldName, fieldNode.asText());
+                continue;
+//                throw new AppRuntimeException("JsonNode without defined field with key '" + GenericSerializer.GENERIC_KEY_ID + "' is not accepted. RootNode: " + fieldNode);
+            }
+            String genericKeyValue = genericKeyId.asText();
+            if (deserializedObjects.containsKey(genericKeyValue)) {
+                setToParent(parentInstance, fieldName, deserializedObjects.get(genericKeyValue));
+                continue;
+            }
+            String className = genericKeyValue.substring(0, genericKeyValue.indexOf(GenericSerializer.GENERIC_VALUE_SEPARATOR));
+            Class<?> clazz = Class.forName(className);
+            Object value = null;
+            if (ClassUtils.isPrimitiveOrWrapper(clazz)) {
+                value = setPrimitiveOrWrapper(fieldNode, clazz);
+            } else {
+                try {
+                    value = clazz.newInstance();
+                } catch (Exception e) {
+                    throw new AppRuntimeException("Cannot instantiate class: "
+                            + clazz.getCanonicalName()
+                            + ", field for deserialization: "
+                            + fieldName
+                            + ", parentInstance: "
+                            + parentInstance.getClass().getCanonicalName(), e);
+                }
+                deserializeSubFields(fieldNode, value, fieldName);
+            }
+            setToParent(parentInstance, fieldName, value);
+        }
+    }
+
+    /**
+     * For each method of the instance call the {@link #tryToInvokeBySetter(Object, String, Object, Method)} method.<br>
+     * If result is 'false', call the {@link Field#set(Object, Object)} method.
+     */
     private void setToParent(Object parentInstance, String fieldName, Object value) {
         try {
             for (Method method : parentInstance.getClass().getMethods()) {
-                if (method.getName().startsWith("set")
-                        && method.getName().length() == (fieldName.length() + 3)
-                        && method.getName().toLowerCase().endsWith(fieldName.toLowerCase())) {
-                    try {
-                        method.invoke(parentInstance, value);
-                        return;
-                    } catch (Exception e) {
-                        break;
-                    }
+                boolean invokedSuccessfully = tryToInvokeBySetter(parentInstance, fieldName, value, method);
+                if (invokedSuccessfully) {
+                    return;
                 }
             }
             Field field = parentInstance.getClass().getDeclaredField(fieldName);
@@ -134,71 +194,73 @@ public class GenericDeserializer extends StdDeserializer<Object> {
         }
     }
 
-//    /**  */
-//    private Object getPrimitiveOrWrappedValue(String fieldName, Object instance, JsonNode jsonNode) {
-//        if (jsonNode.isBoolean()) {
-//            return jsonNode.asBoolean();
-//        }
-//        throw new AppRuntimeException("Unimplemented primitive or wrapped jsonNode: " + jsonNode.getNodeType()); 
-//    }
-//
-//    /**  */
-//    private Object deserializeFields(JsonNode rootNode, String a4id) {
-//        try {
-//            String className = a4id.substring(0, a4id.indexOf(GenericSerializer.GENERIC_VALUE_SEPARATOR));
-//            Class<?> clazz = Class.forName(className);
-//            Object instance = clazz.newInstance();
-//            if (ClassUtils.isPrimitiveOrWrapper(clazz)) {
-//                Method valueOf = clazz.getDeclaredMethod("valueOf", String.class);
-//                String jsonValue = rootNode.get("value").textValue();
-//                valueOf.invoke(instance, jsonValue);
-//                return instance;
-//            }
-//            deserializedObjects.put(a4id, instance);
-//            Iterator<String> fieldNames = rootNode.fieldNames();
-//            while (fieldNames.hasNext()) {
-//                String fieldName = fieldNames.next();
-//                if (fieldName.equals(GenericSerializer.GENERIC_KEY_ID)) {
-//                    continue;
-//                }
-//                setFieldValueToInstance(fieldName, instance, rootNode.get(fieldName));
-//            }
-//            return instance;
-//        } catch (Exception e) {
-//            throw new AppRuntimeException(e);
-//        }
-//    }
-//
-//    // TODO Auto-generated method stub
-//    /**
-//     * Recursive
-//     */
-//    private void setFieldValueToInstance(String fieldName, Object parentInstance, JsonNode jsonNode) {
-//        if (jsonNode.isObject()) {
-//            String a4id = jsonNode.get(GenericSerializer.GENERIC_KEY_ID).asText();
-//            if (deserializedObjects.containsKey(a4id)) {
-//                setObjectValue(fieldName, parentInstance, deserializedObjects.get(a4id));
-//                return;
-//            }
-//            deserializeFields(jsonNode, a4id);
-//        } else {
-//            setPrimitiveOrWrappedValue(fieldName, parentInstance, jsonNode.get(fieldName));
-//        }
-//    }
-//
-//    /**  */
-//    private void setPrimitiveOrWrappedValue(String fieldName, Object instance, JsonNode jsonNode) {
-//        Method valueOf = clazz.getDeclaredMethod("valueOf", String.class);
-//        String jsonValue = rootNode.get("value").textValue();
-//        valueOf.invoke(instance, jsonValue);
-//        return instance;
-//    }
-//
-//    /**  */
-//    private void setObjectValue(String fieldName, Object target, Object source) {
-//        throw new NotImplementedException("");
-//        
-//    }
+    /**
+     * If the method the field setter, try to invoke the setter on the instance.
+     * @param instance some class instance where to set the value
+     * @param fieldName the {@link Field} name
+     * @param value field value to set on the instance
+     * @param method invocation candidate
+     */
+    private boolean tryToInvokeBySetter(Object instance, String fieldName, Object value, Method method) {
+        if (method.getParameterTypes().length == 1
+                && method.getName().startsWith("set")
+                && method.getName().length() == (fieldName.length() + 3)
+                && method.getName().toLowerCase().endsWith(fieldName.toLowerCase())) {
+            
+            try {
+                Class<?> type = instance.getClass().getDeclaredField(fieldName).getType();
+                if (type.equals(String.class) || ClassUtils.isPrimitiveOrWrapper(type)) {
+                    if (ClassUtils.isPrimitiveWrapper(type) || type.equals(String.class)) {
+                        Constructor<?> constructor = type.getConstructor(String.class);
+                        Object object = constructor.newInstance((String) value);
+                        method.invoke(instance, object);
+                    } else {
+                        // primitive
+                        Object object = toObject(type, (String)value);
+                        method.invoke(instance, object);
+                    }
+                } else {
+                    method.invoke(instance, value);
+                }
+                return true;
+            } catch (Exception e) {
+                return false;
+            }
+        }
+        return false;
+    }
+    
+    private static Object toObject( Class<?> type, String value ) {
+        if (Boolean.TYPE == type) {
+            return Boolean.parseBoolean(value);
+        }
+        
+        if (Byte.TYPE == type) {
+            return Byte.parseByte(value);
+        }
+        
+        if (Short.TYPE == type) {
+            return Short.parseShort(value);
+        }
+        
+        if (Integer.TYPE == type) {
+            return Integer.parseInt(value);
+        }
+        
+        if (Long.TYPE == type) {
+            return Long.parseLong(value);
+        }
+        
+        if (Float.TYPE == type) {
+            return Float.parseFloat(value);
+        }
+        
+        if (Double.TYPE == type) {
+            return Double.parseDouble(value);
+        }
+        
+        throw new AppRuntimeException("Cannot parse value: '" + value + "' of type: " + type);
+    }
 
     /** @return The {@link GenericDeserializer#deserializedObjects} field */
     public Map<String, Object> getDeserializedObjects() {

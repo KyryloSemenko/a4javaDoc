@@ -52,9 +52,6 @@ public class ObjectMapperA4j {
      * @param value see a {@link ObjectMapper#writeValue(Writer, Object)} method
      */
     public void writeValue(Writer writer, Object value) {
-        if (value == null) {
-            return;
-        }
         try {
             objectMapper.writeValue(writer, value);
         } catch (Exception e) {
