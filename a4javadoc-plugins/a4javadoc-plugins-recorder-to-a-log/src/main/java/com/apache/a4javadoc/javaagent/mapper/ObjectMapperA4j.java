@@ -3,6 +3,7 @@ package com.apache.a4javadoc.javaagent.mapper;
 import java.io.Writer;
 
 import com.apache.a4javadoc.exception.AppRuntimeException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.module.SimpleModule;
@@ -22,6 +23,11 @@ public class ObjectMapperA4j {
     private ObjectMapperA4j() {
         objectMapper = new ObjectMapper();
         objectMapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
+        objectMapper.disable(DeserializationFeature.EAGER_DESERIALIZER_FETCH);
+        objectMapper.disable(DeserializationFeature.FAIL_ON_INVALID_SUBTYPE);
+        objectMapper.disable(DeserializationFeature.FAIL_ON_MISSING_EXTERNAL_TYPE_ID_PROPERTY);
+        objectMapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+        objectMapper.disable(DeserializationFeature.FAIL_ON_UNRESOLVED_OBJECT_IDS);
         
         GenericSerializerProvider genericSerializerProvider = new GenericSerializerProvider();
         objectMapper.setSerializerProvider(genericSerializerProvider);
@@ -67,7 +73,20 @@ public class ObjectMapperA4j {
      */
     public <T> T readValue(String content, Class<T> valueType) {
         try {
-            return objectMapper.readValue(content, valueType);
+            return (T) objectMapper.readValue(content, valueType);
+        } catch (Exception e) {
+            throw new AppRuntimeException(e);
+        }
+    }
+    
+    /**
+     * Calls a {@link ObjectMapper#readValue(String, Class)} method with {@link Object#getClass()}
+     * @param content see a {@link ObjectMapper#readValue(String, Class)} method
+     * @return a deserialized object
+     */
+    public Object readValue(String content) {
+        try {
+            return objectMapper.readValue(content, Object.class);
         } catch (Exception e) {
             throw new AppRuntimeException(e);
         }
