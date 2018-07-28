@@ -183,7 +183,7 @@ public class ObjectMapperA4jTest {
         assertTrue(map.size() == deserialized.size());
 
         for (Map.Entry<Integer, String> entry : map.entrySet()) {
-            assertNotNull(deserialized.entrySet().contains(entry));
+            assertTrue(deserialized.entrySet().contains(entry));
         }
     }
     
@@ -222,6 +222,9 @@ public class ObjectMapperA4jTest {
         
         for (Map.Entry<Object, Container> entry : map.entrySet()) {
             assertNotNull(deserialized.entrySet().contains(entry));
+            Object originalObject = map.get(entry.getKey());
+            Object generatedObject = deserialized.get(entry.getKey());
+            assertEquals(0, CompareToBuilder.reflectionCompare(originalObject, generatedObject));
         }
     }
     

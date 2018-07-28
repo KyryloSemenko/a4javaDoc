@@ -34,13 +34,39 @@ import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 @SuppressWarnings("serial")
 public class GenericDeserializer extends StdDeserializer<Object> {
     
+    /** See <a href="https://docs.oracle.com/javase/7/docs/api/java/lang/Class.html#getName%28%29">Class javaDoc</a> */
+    private static final String TYPE_ENCODING_PRIMITIVE_SHORT_S = "S";
+    
+    /** See <a href="https://docs.oracle.com/javase/7/docs/api/java/lang/Class.html#getName%28%29">Class javaDoc</a> */
+    private static final String TYPE_ENCODING_PRIMITIVE_LONG_J = "J";
+    
+    /** See <a href="https://docs.oracle.com/javase/7/docs/api/java/lang/Class.html#getName%28%29">Class javaDoc</a> */
+    private static final String TYPE_ENCODING_PRIMITIVE_INT_I = "I";
+    
+    /** See <a href="https://docs.oracle.com/javase/7/docs/api/java/lang/Class.html#getName%28%29">Class javaDoc</a> */
+    private static final String TYPE_ENCODING_PRIMITIVE_FLOAT_F = "F";
+    
+    /** See <a href="https://docs.oracle.com/javase/7/docs/api/java/lang/Class.html#getName%28%29">Class javaDoc</a> */
+    private static final String TYPE_ENCODING_PRIMITIVE_DOUBLE_D = "D";
+    
+    /** See <a href="https://docs.oracle.com/javase/7/docs/api/java/lang/Class.html#getName%28%29">Class javaDoc</a> */
+    private static final String TYPE_ENCODING_PRIMITIVE_CHAR_C = "C";
+    
+    /** See <a href="https://docs.oracle.com/javase/7/docs/api/java/lang/Class.html#getName%28%29">Class javaDoc</a> */
+    private static final String TYPE_ENCODING_PRIMITIVE_BYTE_B = "B";
+    
+    /** See <a href="https://docs.oracle.com/javase/7/docs/api/java/lang/Class.html#getName%28%29">Class javaDoc</a> */
+    private static final String TYPE_ENCODING_PRIMITIVE_BOOLEAN_Z = "Z";
+    
+    /** See <a href="https://docs.oracle.com/javase/7/docs/api/java/lang/Class.html#getName%28%29">Class javaDoc</a> */
     private static final String CLASS_OR_INTERFACE_ARRAY_PREFIX = "L";
+    
     private static final String ARRAY_OBJECT_SUFFIX = ";";
     private static final String ARRAY_LEFT_BRACKET = "\\[";
     private static final String START_ARRAY = "[";
     /**
      * Values of this map contains already deserialized objects. The keys of the map contains generic identifiers,
-     * see the {@link GenericSerializer#generateIdentifier(Object)} method.
+     * see the {@link IdentifierService#generateIdentifier(Object)} method.
      */
     private transient Map<String, Object> deserializedObjects;
     
@@ -64,21 +90,21 @@ public class GenericDeserializer extends StdDeserializer<Object> {
         JsonNode rootNode = jsonParser.getCodec().readTree(jsonParser);
         
         if (rootNode.get(GenericSerializer.GENERIC_KEY_ID) == null) {
-            throw new AppRuntimeException("Root node without defined field with key '" + GenericSerializer.GENERIC_KEY_ID + "' is not accepted. RootNode: " + rootNode);
+            throw new AppRuntimeException("Root node without defined field with key '" + GenericSerializer.GENERIC_KEY_ID + "' is not accepted. Is this JSON string serialized by '" + GenericSerializer.class.getCanonicalName() + "'?. RootNode: " + rootNode);
         }
         
-        return deserializeObject(rootNode, null);
+        return deserializeObject(rootNode, null, null, null, null);
     }
 
     /** TODO Kyrylo Semenko */
-    private Object deserializeObject(JsonNode currentNode, Class<?> defaultType) {
+    private Object deserializeObject(JsonNode currentNode, Class<?> defaultType, String defaultIdentifier, Object parentInstance, String fieldName) {
         try {
             Object instance = null;
             Class<?> clazz = null;
-            String identifier = null;
+            String identifier = defaultIdentifier;
             if (currentNode.has(GenericSerializer.GENERIC_KEY_ID)) {
                 identifier = currentNode.get(GenericSerializer.GENERIC_KEY_ID).asText();
-                String className = identifier.substring(0, identifier.indexOf(GenericSerializer.GENERIC_VALUE_SEPARATOR));
+                String className = IdentifierService.getInstance().findClassName(identifier);
                 clazz = Class.forName(className);
                 currentNode = currentNode.get(GenericSerializer.GENERIC_VALUE);
             } else {
@@ -88,12 +114,12 @@ public class GenericDeserializer extends StdDeserializer<Object> {
             if (result != null) {
                 return result;
             }
-            instance = instantiate(clazz, currentNode);
+            instance = instantiate(clazz, currentNode, parentInstance, fieldName);
             if (identifier != null) {
                 deserializedObjects.put(identifier, instance);
             }
             
-            deserializeSubFields(currentNode, instance, null);
+            deserializeSubFields(currentNode, instance, null, identifier);
             return instance;
         } catch (Exception e) {
             throw new AppRuntimeException(e);
@@ -101,12 +127,15 @@ public class GenericDeserializer extends StdDeserializer<Object> {
     }
 
     /** TODO */
-    private Object instantiate(Class<?> clazz, JsonNode currentNode) throws InstantiationException, IllegalAccessException {
+    private Object instantiate(Class<?> clazz, JsonNode currentNode, Object parentInstance, String fieldName) {
         try {
             if (clazz.getName().contains(START_ARRAY)) {
                 return instantiateArray(clazz, currentNode);
             }
-            return clazz.newInstance();
+            if (containsEmptyConstructor(clazz.getDeclaredConstructors())) {
+                return clazz.newInstance();
+            }
+            return invokeNonemptyConstructor(currentNode, parentInstance, fieldName, clazz);
         } catch (Exception e) {
             throw new AppRuntimeException(e);
         }
@@ -146,7 +175,7 @@ public class GenericDeserializer extends StdDeserializer<Object> {
      * If so, the value is a reference to already deserialized object from {@link #deserializedObjects}. Set it to instance and return.
      * Else call the {@link #deserializeFields(JsonNode, Object, List)} method. 
      */
-    private void deserializeSubFields(JsonNode jsonNode, Object parentInstance, String parentFieldName) {
+    private void deserializeSubFields(JsonNode jsonNode, Object parentInstance, String parentFieldName, String parentIdentifier) {
         try {
             Iterator<String> fieldNames = jsonNode.fieldNames();
             List<String> fieldNameList = new ArrayList<>();
@@ -166,21 +195,41 @@ public class GenericDeserializer extends StdDeserializer<Object> {
                     return;
                 }
             }
-            deserializeFields(jsonNode, parentInstance, fieldNameList);
+            deserializeFields(jsonNode, parentInstance, fieldNameList, parentIdentifier);
+            deserializeMap(jsonNode, parentInstance, parentIdentifier);
         } catch (Exception e) {
             throw new AppRuntimeException(e);
         }
     }
 
+    // TODO Auto-generated method stub
+    private boolean deserializeMap(JsonNode jsonNode, Object parentInstance, String parentIdentifier) {
+        if (Map.class.isAssignableFrom(parentInstance.getClass())) {
+            Class<?> keyClass = IdentifierService.getInstance().findKeyClass(parentIdentifier);
+            Class<?> valueClass = IdentifierService.getInstance().findValueClass(parentIdentifier);
+            @SuppressWarnings("unchecked")
+            Map<Object, Object> map = (Map<Object, Object>) parentInstance;
+            Iterator<JsonNode> iterator = jsonNode.iterator();
+            while (iterator.hasNext()) {
+                JsonNode nextNode = iterator.next();
+                Object keyObject = deserializeObject(nextNode.get(0), keyClass, null, parentInstance, null);
+                Object valueObject = deserializeObject(nextNode.get(1), valueClass, null, parentInstance, null);
+                map.put(keyObject, valueObject);
+            }
+            return true;
+        }
+        return false;
+    }
+
     /** TODO Kyrylo Semenko */
-    private void deserializeFields(JsonNode jsonNode, Object parentInstance, List<String> fieldNameList) {
+    private void deserializeFields(JsonNode jsonNode, Object parentInstance, List<String> fieldNameList, String parentIdentifier) {
         for (String fieldName : fieldNameList) {
-            deserializeNode(jsonNode, parentInstance, fieldName);
+            deserializeNode(jsonNode, parentInstance, fieldName, parentIdentifier);
         }
     }
 
     // TODO mozna spojit s deserializeObject
-    private void deserializeNode(JsonNode jsonNode, Object parentInstance, String fieldName) {
+    private void deserializeNode(JsonNode jsonNode, Object parentInstance, String fieldName, String parentIdentifier) {
         Class<?> clazz = null;
         try {
             JsonNode fieldNode = jsonNode.get(fieldName);
@@ -196,20 +245,14 @@ public class GenericDeserializer extends StdDeserializer<Object> {
                 setToParent(parentInstance, fieldName, deserializedObjects.get(genericKeyValue));
                 return;
             }
-            String className = genericKeyValue.substring(0, genericKeyValue.indexOf(GenericSerializer.GENERIC_VALUE_SEPARATOR));
+            String className = IdentifierService.getInstance().findClassName(genericKeyValue);
             clazz = Class.forName(className);
-            fieldNode = fieldNode.get(GenericSerializer.GENERIC_VALUE);
+            JsonNode valueFieldNode = fieldNode.get(GenericSerializer.GENERIC_VALUE);
             Object value = null;
             if (ClassUtils.isPrimitiveOrWrapper(clazz)) {
-                value = setPrimitiveOrWrapper(fieldNode, clazz);
+                value = setPrimitiveOrWrapper(valueFieldNode, clazz);
             } else {
-                Constructor<?>[] constructors = clazz.getDeclaredConstructors();
-                if (containsEmptyConstructor(constructors)) {
-                    value = clazz.newInstance();
-                } else {
-                    value = invokeNonemptyConstructor(fieldNode, parentInstance, fieldName, clazz);
-                }
-//                deserializeSubFields(fieldNode, value, fieldName);
+                value = deserializeObject(valueFieldNode, clazz, genericKeyValue, parentInstance, fieldName);
             }
             setToParent(parentInstance, fieldName, value);
         } catch (Exception e) {
@@ -232,14 +275,19 @@ public class GenericDeserializer extends StdDeserializer<Object> {
                 Iterator<JsonNode> iterator = jsonNode.iterator();
                 while (iterator.hasNext()) {
                     JsonNode nextNode = iterator.next();
-                    Object nextObject = deserializeObject(nextNode, getContainerType(field));
+                    Object nextObject = deserializeObject(
+                            nextNode,
+                            FieldService.getInstance().getContainerType(field),
+                            fieldNode.get(GenericSerializer.GENERIC_KEY_ID).asText(),
+                            parentInstance,
+                            fieldName);
                     parameters.add(nextObject);
                 }
             } else {
                 Iterator<JsonNode> iterator = fieldNode.iterator();
                 while (iterator.hasNext()) {
                     JsonNode nextNode = iterator.next();
-                    Object nextObject = deserializeObject(nextNode, getContainerType(field));
+                    Object nextObject = deserializeObject(nextNode, FieldService.getInstance().getContainerType(field), null, parentInstance, fieldName);
                     parameters.add(nextObject);
                 }
             }
@@ -381,17 +429,6 @@ public class GenericDeserializer extends StdDeserializer<Object> {
         }
     }
 
-    /** TODO Kyrylo Semenko stejny je v GenericSerializeru */
-    private Class<? extends Object> getContainerType(Field field) {
-        // Collections
-        if (Collection.class.isAssignableFrom(field.getType())) {
-            ParameterizedType parameterizedFieldType = (ParameterizedType) field.getGenericType();
-            return (Class<?>) parameterizedFieldType.getActualTypeArguments()[0];
-        }
-        // Arrays or other objects
-        return field.getType();
-    }
-
     // TODO Auto-generated method stub
     private boolean containsEmptyConstructor(Constructor<?>[] constructors) {
         for (Constructor<?> constructor : constructors) {
@@ -435,14 +472,14 @@ public class GenericDeserializer extends StdDeserializer<Object> {
                 int length = fieldNode.size();
                 for (int i = 0; i < length; i++) {
                     JsonNode childJsonNode = fieldNode.get(i);
-                    collection.add(deserializeObject(childJsonNode, getContainerType(field)));
+                    collection.add(deserializeObject(childJsonNode, FieldService.getInstance().getContainerType(field), null, parentInstance, fieldName));
                 }
                 setToParent(parentInstance, fieldName, collection);
                 return;
             }
             
             // Complex objects
-            Object value = deserializeObject(fieldNode, fieldType);
+            Object value = deserializeObject(fieldNode, fieldType, null, parentInstance, fieldName);
             setToParent(parentInstance, fieldName, value);
         } catch (Exception e) {
             throw new AppRuntimeException(e);
@@ -462,22 +499,22 @@ public class GenericDeserializer extends StdDeserializer<Object> {
             Class<?> componentType = null;
             if (arrayClassName.startsWith(CLASS_OR_INTERFACE_ARRAY_PREFIX)) {
                 componentType = Class.forName(arrayClassName.substring(1));
-            } else if (arrayClassName.startsWith("Z")) {
-                // TODO https://docs.oracle.com/javase/7/docs/api/java/lang/Class.html#getName%28%29
-            } else if (arrayClassName.startsWith("B")) {
-                // TODO https://docs.oracle.com/javase/7/docs/api/java/lang/Class.html#getName%28%29
-            } else if (arrayClassName.startsWith("C")) {
-                // TODO https://docs.oracle.com/javase/7/docs/api/java/lang/Class.html#getName%28%29
-            } else if (arrayClassName.startsWith("D")) {
-                // TODO https://docs.oracle.com/javase/7/docs/api/java/lang/Class.html#getName%28%29
-            } else if (arrayClassName.startsWith("F")) {
-                // TODO https://docs.oracle.com/javase/7/docs/api/java/lang/Class.html#getName%28%29
-            } else if (arrayClassName.startsWith("I")) {
-                componentType = Integer.TYPE;
-            } else if (arrayClassName.startsWith("J")) {
-                // TODO https://docs.oracle.com/javase/7/docs/api/java/lang/Class.html#getName%28%29
-            } else if (arrayClassName.startsWith("S")) {
-                // TODO https://docs.oracle.com/javase/7/docs/api/java/lang/Class.html#getName%28%29
+            } else if (arrayClassName.startsWith(TYPE_ENCODING_PRIMITIVE_BOOLEAN_Z)) {
+                componentType = boolean.class;
+            } else if (arrayClassName.startsWith(TYPE_ENCODING_PRIMITIVE_BYTE_B)) {
+                componentType = byte.class;
+            } else if (arrayClassName.startsWith(TYPE_ENCODING_PRIMITIVE_CHAR_C)) {
+                componentType = char.class;
+            } else if (arrayClassName.startsWith(TYPE_ENCODING_PRIMITIVE_DOUBLE_D)) {
+                componentType = double.class;
+            } else if (arrayClassName.startsWith(TYPE_ENCODING_PRIMITIVE_FLOAT_F)) {
+                componentType = float.class;
+            } else if (arrayClassName.startsWith(TYPE_ENCODING_PRIMITIVE_INT_I)) {
+                componentType = int.class;
+            } else if (arrayClassName.startsWith(TYPE_ENCODING_PRIMITIVE_LONG_J)) {
+                componentType = long.class;
+            } else if (arrayClassName.startsWith(TYPE_ENCODING_PRIMITIVE_SHORT_S)) {
+                componentType = short.class;
             }
             int dimensionsNumber = clazz.getName().split(ARRAY_LEFT_BRACKET).length - 1;
             int[] dimensionSizes = new int[dimensionsNumber];
@@ -504,7 +541,7 @@ public class GenericDeserializer extends StdDeserializer<Object> {
                 if (nextNode.isNull()) {
                     Array.set(array, position++, null);
                 } else {
-                    Array.set(array, position++, deserializeObject(nextNode, arrayType));
+                    Array.set(array, position++, deserializeObject(nextNode, arrayType, null, null, null));
                 }
             }
         }

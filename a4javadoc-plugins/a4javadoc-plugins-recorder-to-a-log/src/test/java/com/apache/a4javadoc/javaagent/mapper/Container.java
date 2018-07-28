@@ -5,6 +5,8 @@ import java.util.List;
 import org.apache.commons.lang3.builder.CompareToBuilder;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
+import org.apache.commons.lang3.builder.ToStringBuilder;
+import org.apache.commons.lang3.builder.ToStringStyle;
 
 /**
  * For tests purposes only.
@@ -37,6 +39,14 @@ public class Container implements Comparable<Container> {
     @Override
     public int compareTo(Container other) {
         return CompareToBuilder.reflectionCompare(this, other);
+    }
+    
+    /** 
+     * @see java.lang.Object#toString()
+     */
+    @Override
+    public String toString() {
+        return ToStringBuilder.reflectionToString(this, ToStringStyle.JSON_STYLE);
     }
     
     /** @return The {@link Container#listOfStrings} field */
