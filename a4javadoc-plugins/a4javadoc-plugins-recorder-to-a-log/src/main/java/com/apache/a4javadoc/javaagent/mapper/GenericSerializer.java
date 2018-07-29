@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -70,7 +69,11 @@ public class GenericSerializer extends StdSerializer<Object> {
             
 //            if (field != null && genericSerializerProvider.getSerializedObjects().contains(sourceObject)) {
             if (genericSerializerProvider.getSerializedObjects().contains(sourceObject)) {
-                jsonGenerator.writeObjectFieldStart(field.getName());
+                if (field != null) {
+                    jsonGenerator.writeObjectFieldStart(field.getName());
+                } else {
+                    jsonGenerator.writeStartObject();
+                }
                 jsonGenerator.writeStringField(GENERIC_KEY_ID, identifier);
                 jsonGenerator.writeEndObject();
                 return;
@@ -178,9 +181,9 @@ public class GenericSerializer extends StdSerializer<Object> {
                     }
                 }
                 
-                Type[] componentTypes = FieldService.getInstance().getContainerType(field, fieldObject);
+                List<Class<?>> componentTypes = FieldService.getInstance().getContainerTypes(field, fieldObject, null);
                 for (Object nextObject : objectList) {
-                    boolean appendGenericId = nextObject != null && !isClassesTheSame((Class<?>) componentTypes[0], nextObject.getClass());
+                    boolean appendGenericId = nextObject != null && !isClassesTheSame(componentTypes.get(0), nextObject.getClass()); // TODO je to nesmysl
                     serializeObject(field, nextObject, jsonGenerator, genericSerializerProvider, depth, rootObject, appendGenericId);
                 }
                 
@@ -223,9 +226,9 @@ public class GenericSerializer extends StdSerializer<Object> {
                             jsonGenerator.writeStartArray();
                         }
                     }
-                    Type[] componentTypes = FieldService.getInstance().getContainerType(field, fieldObject);
+                    List<Class<?>> componentTypes = FieldService.getInstance().getContainerTypes(field, fieldObject, null);
                     for (Object nextObject : objectList) {
-                        boolean appendGenericId = nextObject != null && !isClassesTheSame((Class<?>) componentTypes[0], nextObject.getClass());
+                        boolean appendGenericId = nextObject != null && !isClassesTheSame(componentTypes.get(0), nextObject.getClass()); // TODO je to nesmysl
                         serializeObject(field, nextObject, jsonGenerator, genericSerializerProvider, depth, rootObject, appendGenericId);
                     }
                     

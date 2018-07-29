@@ -46,7 +46,7 @@ public class TypeService {
             while (iterator.hasNext()) {
                 Object object = iterator.next();
                 Class<?> objectClass = object.getClass();
-                commonClass = findCommonClass(commonClass, objectClass);
+                commonClass = ClassService.getInstance().findCommonParent(commonClass, objectClass);
             }
             if (commonClass == null) {
                 throw new AppRuntimeException("closestClass cannot be null");
@@ -61,29 +61,29 @@ public class TypeService {
                 Entry<?, ?> entry = (Entry<?, ?>) object;
                 // key
                 Class<?> keyClass = entry.getKey().getClass();
-                keyCommonClass = findCommonClass(keyCommonClass, keyClass);
+                keyCommonClass = ClassService.getInstance().findCommonParent(keyCommonClass, keyClass);
                 // value
                 Class<?> valueClass = entry.getValue().getClass();
-                valueCommonClass = findCommonClass(valueCommonClass, valueClass);
+                valueCommonClass = ClassService.getInstance().findCommonParent(valueCommonClass, valueClass);
             }
             return IdentifierService.GENERIC_LEFT_BRACKET + keyCommonClass.getCanonicalName() + IdentifierService.GENERIC_COMMA + valueCommonClass.getCanonicalName() + IdentifierService.GENERIC_RIGHT_BRACKET;
          }
         return EMPTY_STRING;
     }
 
-    /** TODO */
-    private Class<?> findCommonClass(Class<?> commonClass, Class<?> clazz) {
-        if (commonClass == null) {
-            commonClass = clazz;
-        } else {
-            if (!commonClass.isAssignableFrom(clazz)) {
-                commonClass = clazz;
-            }
-        }
-        if (commonClass == null) {
-            throw new AppRuntimeException("commonClass cannot be null");
-        }
-        return commonClass;
-    }
+//    /** TODO */
+//    private Class<?> findCommonClass(Class<?> commonClass, Class<?> clazz) {
+//        if (commonClass == null) {
+//            commonClass = clazz;
+//        } else {
+//            if (!commonClass.isAssignableFrom(clazz)) {
+//                commonClass = clazz;
+//            }
+//        }
+//        if (commonClass == null) {
+//            throw new AppRuntimeException("commonClass cannot be null");
+//        }
+//        return commonClass;
+//    }
 
 }

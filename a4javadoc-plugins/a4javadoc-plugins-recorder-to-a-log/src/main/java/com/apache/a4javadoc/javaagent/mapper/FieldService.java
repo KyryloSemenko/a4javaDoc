@@ -5,6 +5,7 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
@@ -60,23 +61,26 @@ public class FieldService {
         return !field.isSynthetic() && !Modifier.isStatic(field.getModifiers());
     }
 
-    /** TODO Kyrylo Semenko stejny jako {@link #getContainerType(Field, Object)}? */
-    public Class<? extends Object> getContainerType(Field field) {
-        // Collections
-        if (Collection.class.isAssignableFrom(field.getType())) {
-            ParameterizedType parameterizedFieldType = (ParameterizedType) field.getGenericType();
-            return (Class<?>) parameterizedFieldType.getActualTypeArguments()[0];
-        }
-        // Arrays or other objects
-        return field.getType();
-    }
+//    /** TODO Kyrylo Semenko stejny jako {@link #getContainerType(Field, Object)}? */
+//    public Class<? extends Object> getContainerType(Field field) {
+//        // Collections
+//        if (Collection.class.isAssignableFrom(field.getType())) {
+//            ParameterizedType parameterizedFieldType = (ParameterizedType) field.getGenericType();
+//            return (Class<?>) parameterizedFieldType.getActualTypeArguments()[0];
+//        }
+//        // Arrays or other objects
+//        return field.getType();
+//    }
 
     /** TODO Kyrylo Semenko  */
-    public Type[] getContainerType(Field field, Object fieldObject) {
+    public List<Class<?>> getContainerTypes(Field field, Object fieldObject, String identifier) {
+        if (identifier != null) {
+            return IdentifierService.getInstance().findGenericTypes(identifier);
+        }
         if (fieldObject != null) {
             // Arrays
             if (fieldObject.getClass().isArray()) {
-                return new Type[]{(fieldObject.getClass().getComponentType())};
+                return Arrays.asList(fieldObject.getClass().getComponentType());
             }
             
             // Collections and maps
@@ -86,30 +90,28 @@ public class FieldService {
             // Iterate objects and find out it types, then choose the most generic
             Class<?> result = null;
             for (Object object : objectList) {
-                if (result == null) {
-                    result = object.getClass();
-                } else {
-                    if (object.getClass().isAssignableFrom(result)) {
-                        result = object.getClass();
-                    } else if (!result.isAssignableFrom(object.getClass())) {
-                        throw new AppRuntimeException("One collection or map should not have items with different types");
-                    }
-                }
+                result = ClassService.getInstance().findCommonParent(object.getClass(), result);
             }
-            return new Type[]{result};
+            return Arrays.asList(result);
         }
         if (field != null) {
             // Arrays
             if (field.getType().isArray()) {
-                return new Type[]{(field.getType().getComponentType())};
+                return Arrays.asList(field.getType().getComponentType());
             }
             // Collections and Maps
             Type type = field.getGenericType();
             if (type instanceof ParameterizedType) {
-                return ((ParameterizedType) type).getActualTypeArguments();
+                Type[] types = ((ParameterizedType) type).getActualTypeArguments();
+                List<Class<?>> result = new ArrayList<>();
+                for (Type nextType : types) {
+                    result.add((Class<?>) nextType);
+                }
+                return result;
             }
         }
         // Other objects
-        throw new AppRuntimeException("The field '" + field + "' is not an Array nor ParameterizedType");
+        throw new AppRuntimeException("The field '" + field + "' is not Array nor ParameterizedType");
     }
+
 }

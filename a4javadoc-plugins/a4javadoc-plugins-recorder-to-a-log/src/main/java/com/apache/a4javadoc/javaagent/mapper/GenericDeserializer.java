@@ -104,6 +104,9 @@ public class GenericDeserializer extends StdDeserializer<Object> {
             String identifier = defaultIdentifier;
             if (currentNode.has(GenericSerializer.GENERIC_KEY_ID)) {
                 identifier = currentNode.get(GenericSerializer.GENERIC_KEY_ID).asText();
+                if (deserializedObjects.containsKey(identifier)) {
+                    return deserializedObjects.get(identifier);
+                }
                 String className = IdentifierService.getInstance().findClassName(identifier);
                 clazz = Class.forName(className);
                 currentNode = currentNode.get(GenericSerializer.GENERIC_VALUE);
@@ -114,7 +117,7 @@ public class GenericDeserializer extends StdDeserializer<Object> {
             if (result != null) {
                 return result;
             }
-            instance = instantiate(clazz, currentNode, parentInstance, fieldName);
+            instance = instantiate(clazz, currentNode, parentInstance, fieldName, identifier);
             if (identifier != null) {
                 deserializedObjects.put(identifier, instance);
             }
@@ -126,8 +129,8 @@ public class GenericDeserializer extends StdDeserializer<Object> {
         }
     }
 
-    /** TODO */
-    private Object instantiate(Class<?> clazz, JsonNode currentNode, Object parentInstance, String fieldName) {
+    /** TODO  */
+    private Object instantiate(Class<?> clazz, JsonNode currentNode, Object parentInstance, String fieldName, String identifier) {
         try {
             if (clazz.getName().contains(START_ARRAY)) {
                 return instantiateArray(clazz, currentNode);
@@ -135,7 +138,7 @@ public class GenericDeserializer extends StdDeserializer<Object> {
             if (containsEmptyConstructor(clazz.getDeclaredConstructors())) {
                 return clazz.newInstance();
             }
-            return invokeNonemptyConstructor(currentNode, parentInstance, fieldName, clazz);
+            return invokeFactoryOrNonemptyConstructor(currentNode, parentInstance, fieldName, clazz, identifier);
         } catch (Exception e) {
             throw new AppRuntimeException(e);
         }
@@ -203,17 +206,17 @@ public class GenericDeserializer extends StdDeserializer<Object> {
     }
 
     // TODO Auto-generated method stub
-    private boolean deserializeMap(JsonNode jsonNode, Object parentInstance, String parentIdentifier) {
-        if (Map.class.isAssignableFrom(parentInstance.getClass())) {
+    private boolean deserializeMap(JsonNode jsonNode, Object mapInstance, String parentIdentifier) {
+        if (Map.class.isAssignableFrom(mapInstance.getClass())) {
             Class<?> keyClass = IdentifierService.getInstance().findKeyClass(parentIdentifier);
             Class<?> valueClass = IdentifierService.getInstance().findValueClass(parentIdentifier);
             @SuppressWarnings("unchecked")
-            Map<Object, Object> map = (Map<Object, Object>) parentInstance;
+            Map<Object, Object> map = (Map<Object, Object>) mapInstance;
             Iterator<JsonNode> iterator = jsonNode.iterator();
             while (iterator.hasNext()) {
                 JsonNode nextNode = iterator.next();
-                Object keyObject = deserializeObject(nextNode.get(0), keyClass, null, parentInstance, null);
-                Object valueObject = deserializeObject(nextNode.get(1), valueClass, null, parentInstance, null);
+                Object keyObject = deserializeObject(nextNode.get(0), keyClass, null, mapInstance, null);
+                Object valueObject = deserializeObject(nextNode.get(1), valueClass, null, mapInstance, null);
                 map.put(keyObject, valueObject);
             }
             return true;
@@ -266,41 +269,52 @@ public class GenericDeserializer extends StdDeserializer<Object> {
     }
 
     // TODO Auto-generated method stub
-    private Object invokeNonemptyConstructor(JsonNode fieldNode, Object parentInstance, String fieldName, Class<?> clazz) {
+    // Create an empty instance
+    private Object invokeFactoryOrNonemptyConstructor(JsonNode jsonNode, Object parentInstance, String fieldName, Class<?> clazz, String identifier) {
         try {
-            Field field = parentInstance.getClass().getDeclaredField(fieldName);
+            Field field = null;
+            if (parentInstance != null && fieldName != null) {
+                field = parentInstance.getClass().getDeclaredField(fieldName);
+            }
             List<Object> parameters = new ArrayList<>();
-            if (fieldNode.has(GenericSerializer.GENERIC_KEY_ID)) {
-                JsonNode jsonNode = fieldNode.get(GenericSerializer.GENERIC_VALUE);
-                Iterator<JsonNode> iterator = jsonNode.iterator();
+            List<Class<?>> containerTypes = FieldService.getInstance().getContainerTypes(field, null, identifier);
+            if (jsonNode.has(GenericSerializer.GENERIC_KEY_ID)) {
+//                Class<?> type = IdentifierService.getInstance().findClass(jsonNode.get(GenericSerializer.GENERIC_KEY_ID).asText());
+                JsonNode valueNode = jsonNode.get(GenericSerializer.GENERIC_VALUE);
+                Iterator<JsonNode> iterator = valueNode.iterator();
                 while (iterator.hasNext()) {
                     JsonNode nextNode = iterator.next();
                     Object nextObject = deserializeObject(
                             nextNode,
-                            FieldService.getInstance().getContainerType(field),
-                            fieldNode.get(GenericSerializer.GENERIC_KEY_ID).asText(),
+                            containerTypes.get(0), // TODO je to nesmysl
+                            jsonNode.get(GenericSerializer.GENERIC_KEY_ID).asText(),
                             parentInstance,
                             fieldName);
                     parameters.add(nextObject);
                 }
             } else {
-                Iterator<JsonNode> iterator = fieldNode.iterator();
+                Iterator<JsonNode> iterator = jsonNode.iterator();
                 while (iterator.hasNext()) {
                     JsonNode nextNode = iterator.next();
-                    Object nextObject = deserializeObject(nextNode, FieldService.getInstance().getContainerType(field), null, parentInstance, fieldName);
+                    Object nextObject = deserializeObject(
+                            nextNode,
+                            containerTypes.get(0), // TODO je to nesmysl
+                            identifier,
+                            parentInstance,
+                            fieldName);
                     parameters.add(nextObject);
                 }
             }
             
             if (clazz.isArray()) {
-                return instantiateArray(clazz, fieldNode);
+                return instantiateArray(clazz, jsonNode);
             }
             
             if (Collection.class.isAssignableFrom(clazz)) {
-                return findAndInvokeConstructorOrMethod(field, parameters, clazz);
+                return findAndInvokeConstructorOrMethod(field, parameters, clazz, identifier);
             }
             // Plain object
-            return findAndInvokeConstructorOrMethod(field, parameters, clazz);
+            return findAndInvokeConstructorOrMethod(field, parameters, clazz, identifier);
             
         } catch (Exception e) {
             throw new AppRuntimeException(e);
@@ -308,21 +322,28 @@ public class GenericDeserializer extends StdDeserializer<Object> {
     }
 
     // TODO Auto-generated method stub
-    private Object findAndInvokeConstructorOrMethod(Field field, List<Object> parameters, Class<?> clazz) {
+    private Object findAndInvokeConstructorOrMethod(Field field, List<Object> parameters, Class<?> clazz, String identifier) {
         try {
-            Type type = field.getGenericType();
-            if (type instanceof ParameterizedType) {
-                ParameterizedType parameterizedType = (ParameterizedType) type;
+            Type fieldType = null;
+            if (field != null) {
+                fieldType = field.getGenericType();
+            } else if (identifier != null) {
+                fieldType = IdentifierService.getInstance().findClass(identifier);
+            } else {
+                fieldType = clazz;
+            }
+            if (fieldType instanceof ParameterizedType) {
+                ParameterizedType parameterizedType = (ParameterizedType) fieldType;
                 Type[] actualTypeArguments = parameterizedType.getActualTypeArguments();
                 if (actualTypeArguments.length > 1) {
                     throw new NotImplementedException("todo");
                 }
-                Constructor<?> constructor = findConstructor(field, clazz, type, actualTypeArguments, parameters);
+                Constructor<?> constructor = findConstructor(field, clazz, fieldType, actualTypeArguments, parameters);
                 if (constructor != null) {
                     constructor.setAccessible(true);
                     return constructor.newInstance(parameters.toArray());
                 }
-                Method method = findStaticMethod(field, clazz, type, actualTypeArguments, parameters);
+                Method method = findStaticMethod(field, clazz, fieldType, actualTypeArguments, parameters);
                 if (method != null) {
                     method.setAccessible(true);
                     return method.invoke(null, (Object) parameters.toArray());
@@ -416,20 +437,6 @@ public class GenericDeserializer extends StdDeserializer<Object> {
     }
 
     // TODO Auto-generated method stub
-    private void findSuperClassesAndInterfaces(Class<?> clazz, ArrayList<Class<?>> superClassesAndInterfaces) {
-        Class<?> superClass = clazz.getSuperclass();
-        if (superClass != null) {
-            superClassesAndInterfaces.add(superClass);
-            findSuperClassesAndInterfaces(superClass, superClassesAndInterfaces);
-        }
-        Class<?>[] interfaces = clazz.getInterfaces();
-        superClassesAndInterfaces.addAll(Arrays.asList(interfaces));
-        for (Class<?> nextInterface : interfaces) {
-            findSuperClassesAndInterfaces(nextInterface, superClassesAndInterfaces);
-        }
-    }
-
-    // TODO Auto-generated method stub
     private boolean containsEmptyConstructor(Constructor<?>[] constructors) {
         for (Constructor<?> constructor : constructors) {
             if (constructor.getParameterTypes().length == 0) {
@@ -472,7 +479,12 @@ public class GenericDeserializer extends StdDeserializer<Object> {
                 int length = fieldNode.size();
                 for (int i = 0; i < length; i++) {
                     JsonNode childJsonNode = fieldNode.get(i);
-                    collection.add(deserializeObject(childJsonNode, FieldService.getInstance().getContainerType(field), null, parentInstance, fieldName));
+                    collection.add(deserializeObject(
+                            childJsonNode,
+                            FieldService.getInstance().getContainerTypes(field, null, null).get(0), // TODO je to nesmysl
+                            null,
+                            parentInstance,
+                            fieldName));
                 }
                 setToParent(parentInstance, fieldName, collection);
                 return;

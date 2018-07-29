@@ -1,6 +1,13 @@
 package com.apache.a4javadoc.javaagent.mapper;
 
+import java.lang.reflect.Type;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.TreeMap;
+
 import com.apache.a4javadoc.exception.AppRuntimeException;
+import com.fasterxml.jackson.databind.JsonNode;
 
 /**
  * Stateless singleton for working objects identifier.
@@ -103,6 +110,45 @@ public class IdentifierService {
             throw new AppRuntimeException(e);
         }
     }
+
+    /**
+     * Find out {@link Type}s of generic object form identifier.
+     * @param identifier object identifier 
+     * @return for example {@link Integer} and {@link String} from the identifier
+     * <pre>{@code java.util.TreeMap$Entry<java.lang.Integer,java.lang.String>@370b5}</pre>
+     */
+    public List<Class<?>> findGenericTypes(String identifier) {
+        if (!identifier.contains(GENERIC_LEFT_BRACKET)) {
+            return Collections.emptyList();
+        }
+        try {
+            int beginIndex = identifier.indexOf(GENERIC_LEFT_BRACKET) + GENERIC_LEFT_BRACKET.length();
+            int endIndex = identifier.indexOf(GENERIC_RIGHT_BRACKET);
+            String[] classes = identifier.substring(beginIndex, endIndex).split(GENERIC_COMMA);
+            List<Class<?>> result = new ArrayList<>();
+            for (String className : classes) {
+                result.add(Class.forName(className));
+            }
+            return result;
+        } catch (ClassNotFoundException e) {
+            throw new AppRuntimeException(e);
+        }
+    }
+
+    /**
+     * Find out {@link Class} of identifier.
+     * @param identifier object identifier 
+     * @return for example {@link java.util.TreeMap} from the identifier
+     * <pre>{@code java.util.TreeMap$Entry<java.lang.Integer,java.lang.String>@370b5}</pre>
+     */
+    public Class<?> findClass(String identifier) {
+        try {
+            return Class.forName(findClassName(identifier));
+        } catch (ClassNotFoundException e) {
+            throw new AppRuntimeException(e);
+        }
+    }
+
 
 
 }
