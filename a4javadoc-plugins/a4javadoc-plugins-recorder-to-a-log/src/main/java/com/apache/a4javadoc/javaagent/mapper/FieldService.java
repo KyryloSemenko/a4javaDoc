@@ -90,7 +90,7 @@ public class FieldService {
             // Iterate objects and find out it types, then choose the most generic
             Class<?> result = null;
             for (Object object : objectList) {
-                result = ClassService.getInstance().findCommonParent(object.getClass(), result);
+                result = ClassService.getInstance().findCommonClassType(object.getClass(), result);
             }
             return Arrays.asList(result);
         }

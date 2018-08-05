@@ -10,7 +10,6 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -18,7 +17,6 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.lang3.ClassUtils;
-import org.apache.commons.lang3.NotImplementedException;
 
 import com.apache.a4javadoc.exception.AppRuntimeException;
 import com.fasterxml.jackson.core.JsonParser;
@@ -324,26 +322,28 @@ public class GenericDeserializer extends StdDeserializer<Object> {
     // TODO Auto-generated method stub
     private Object findAndInvokeConstructorOrMethod(Field field, List<Object> parameters, Class<?> clazz, String identifier) {
         try {
-            Type fieldType = null;
-            if (field != null) {
-                fieldType = field.getGenericType();
-            } else if (identifier != null) {
+            Class<?> fieldType = null;
+            if (identifier != null) {
                 fieldType = IdentifierService.getInstance().findClass(identifier);
+            } else if (field != null) {
+                // in this place primitive types can not occur
+                fieldType = (Class<?>) field.getGenericType();
             } else {
                 fieldType = clazz;
             }
-            if (fieldType instanceof ParameterizedType) {
-                ParameterizedType parameterizedType = (ParameterizedType) fieldType;
-                Type[] actualTypeArguments = parameterizedType.getActualTypeArguments();
-                if (actualTypeArguments.length > 1) {
-                    throw new NotImplementedException("todo");
+            Constructor<?> constructor = ConstructorService.getInstance().findConstructor(field, clazz, fieldType, parameters);
+            if (constructor != null) {
+                constructor.setAccessible(true);
+                return constructor.newInstance(parameters.toArray());
+            }
+            if (field != null) {
+                Method method = findStaticMethod(field.getGenericType(), clazz, parameters, field.getType().getDeclaredMethods());
+                if (method != null) {
+                    method.setAccessible(true);
+                    return method.invoke(null, (Object) parameters.toArray());
                 }
-                Constructor<?> constructor = findConstructor(field, clazz, fieldType, actualTypeArguments, parameters);
-                if (constructor != null) {
-                    constructor.setAccessible(true);
-                    return constructor.newInstance(parameters.toArray());
-                }
-                Method method = findStaticMethod(field, clazz, fieldType, actualTypeArguments, parameters);
+            } else {
+                Method method = findStaticMethod(clazz, clazz, parameters, clazz.getDeclaredMethods());
                 if (method != null) {
                     method.setAccessible(true);
                     return method.invoke(null, (Object) parameters.toArray());
@@ -355,22 +355,56 @@ public class GenericDeserializer extends StdDeserializer<Object> {
         }
     }
 
-    // TODO Auto-generated method stub
-    private Method findStaticMethod(Field field, Class<?> clazz, Type typeForReturning, Type[] actualTypeArguments, List<Object> parameters) {
+//    /**
+//     * This method is recursive. It finds out a static factory for instantiation of a field object.
+//     * @param field class field with object to be instantiated
+//     * @param clazz concrete type of objects which this field will be contain
+//     * @param parameters instances of objects which this field will be contain
+//     */
+//    private Method findStaticMethod(Field field, Class<?> clazz, List<Object> parameters) {
+//        if (clazz == null) {
+//            return null;
+//        }
+//        Type typeForReturning = field.getGenericType();
+//        for (Method method : clazz.getDeclaredMethods()) {
+//            if (isMethodSuits(typeForReturning, parameters, method)) {
+//                return method;
+//            }
+//        }
+//        for (Method method : field.getType().getDeclaredMethods()) {
+//            if (isMethodSuits(typeForReturning, parameters, method)) {
+//                return method;
+//            }
+//        }
+//        Method result = findStaticMethod(field, clazz.getEnclosingClass(), parameters);
+//        if (result != null) {
+//            return result;
+//        }
+//        
+//        return null;
+//    }
+    
+    /**
+     * This method is recursive. It finds out a static factory for instantiation of a field object.
+     * @param typeForReturning future instance type
+     * @param clazz concrete type of objects which this field will be contain
+     * @param parameters instances of objects which this field will be contain
+     */
+    private Method findStaticMethod(Type typeForReturning, Class<?> clazz, List<Object> parameters, Method[] declaredMethods) {
         if (clazz == null) {
             return null;
         }
         for (Method method : clazz.getDeclaredMethods()) {
-            if (isMethodSuits(typeForReturning, parameters, method, actualTypeArguments)) {
+            if (isMethodSuits(typeForReturning, parameters, method)) {
                 return method;
             }
         }
-        for (Method method : field.getType().getDeclaredMethods()) {
-            if (isMethodSuits(typeForReturning, parameters, method, actualTypeArguments)) {
+        for (Method method : declaredMethods) {
+            if (isMethodSuits(typeForReturning, parameters, method)) {
                 return method;
             }
         }
-        Method result = findStaticMethod(field, clazz.getEnclosingClass(), typeForReturning, actualTypeArguments, parameters);
+        Method result = findStaticMethod(typeForReturning, clazz.getEnclosingClass(), parameters, declaredMethods);
         if (result != null) {
             return result;
         }
@@ -379,61 +413,21 @@ public class GenericDeserializer extends StdDeserializer<Object> {
     }
 
     /** TODO */
-    private boolean isMethodSuits(Type typeForReturning, List<Object> parameters, Method method, Type[] actualTypeArguments) {
+    private boolean isMethodSuits(Type typeForReturning, List<Object> parameters, Method method) {
         if (Modifier.isStatic(method.getModifiers())) {
             Class<?>[] parameterTypes = method.getParameterTypes();
-            if (isParametersSuit(parameterTypes, parameters) && typeForReturning == method.getReturnType()) {
+            if (ParameterService.getInstance().isParametersSuit(parameterTypes, parameters, method.isVarArgs())
+                    && TypeService.getInstance().isClassAssignableFromType(method.getReturnType(), typeForReturning)) {
                 return true;
             }
-            Class<?> methodParameterType = parameterTypes[0].getComponentType();
-            if (method.isVarArgs() && isCollectionOrArray(typeForReturning) && methodParameterType.isAssignableFrom(parameters.get(0).getClass())) {
-                return true; 
-            }
+//            Class<?> methodParameterType = parameterTypes[0].getComponentType();
+//            if (method.isVarArgs()
+//                    && TypeService.getInstance().isCollectionOrArray(typeForReturning)
+//                    && methodParameterType.isAssignableFrom(parameters.get(0).getClass())) {
+//                return true; 
+//            }
         }
         return false;
-    }
-
-    // TODO Auto-generated method stub
-    private Constructor<?> findConstructor(Field field, Class<?> clazz, Type typeForReturning, Type[] actualTypeArguments, List<Object> parameters) {
-        for (Constructor<?> constructor : clazz.getDeclaredConstructors()) {
-            if (isConstructorSuit(typeForReturning, parameters, constructor)) {
-                return constructor;
-            }
-        }
-        for (Constructor<?> constructor : field.getType().getDeclaredConstructors()) {
-            if (isConstructorSuit(typeForReturning, parameters, constructor)) {
-                return constructor;
-            }
-        }
-        return null;
-    }
-
-    /** TODO */
-    private boolean isConstructorSuit(Type typeForReturning, List<Object> parameters, Constructor<?> constructor) {
-        Class<?>[] parameterTypes = constructor.getParameterTypes();
-        return isParametersSuit(parameterTypes, parameters) ||
-                (constructor.isVarArgs()
-                && isCollectionOrArray(typeForReturning)
-                && parameterTypes[0] == parameters.get(0).getClass());
-    }
-
-    // TODO Auto-generated method stub
-    private boolean isCollectionOrArray(Type typeForReturning) {
-        return typeForReturning.getClass().isArray() || ParameterizedType.class.isAssignableFrom(typeForReturning.getClass());
-    }
-
-    // TODO
-    private boolean isParametersSuit(Class<?>[] parameterTypes, List<Object> parameters) {
-        int length = parameterTypes.length;
-        if (length != parameters.size()) {
-            return false;
-        }
-        for (int i = 0; i < length; i++) {
-            if (parameterTypes[i] != parameters.get(i).getClass()) {
-                return false;
-            }
-        }
-        return true;
     }
 
     // TODO Auto-generated method stub

@@ -317,7 +317,13 @@ public class ObjectMapperA4jTest {
         
         List<?> deserialized = (List<?>) objectMapperA4j.readValue(json);
         
-        assertEquals(0, CompareToBuilder.reflectionCompare(list, deserialized));
+        assertEquals(list.get(0), deserialized.get(0));
+        Container deserializedContainer1 = (Container) deserialized.get(1);
+        Container deserializedContainer2 = (Container) deserialized.get(3);
+        assertEquals(container.getString(), deserializedContainer1.getString());
+        assertEquals(container.getString(), deserializedContainer2.getString());
+        assertEquals(deserializedContainer1.getObjectField(), deserializedContainer2.getObjectField());
+        assertEquals(list.get(2), deserialized.get(2));
     }
     
 }

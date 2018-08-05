@@ -1,7 +1,10 @@
 package com.apache.a4javadoc.javaagent.mapper;
 
+import java.lang.reflect.Array;
+import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -46,7 +49,7 @@ public class TypeService {
             while (iterator.hasNext()) {
                 Object object = iterator.next();
                 Class<?> objectClass = object.getClass();
-                commonClass = ClassService.getInstance().findCommonParent(commonClass, objectClass);
+                commonClass = ClassService.getInstance().findCommonClassType(commonClass, objectClass);
             }
             if (commonClass == null) {
                 throw new AppRuntimeException("closestClass cannot be null");
@@ -61,10 +64,10 @@ public class TypeService {
                 Entry<?, ?> entry = (Entry<?, ?>) object;
                 // key
                 Class<?> keyClass = entry.getKey().getClass();
-                keyCommonClass = ClassService.getInstance().findCommonParent(keyCommonClass, keyClass);
+                keyCommonClass = ClassService.getInstance().findCommonClassType(keyCommonClass, keyClass);
                 // value
                 Class<?> valueClass = entry.getValue().getClass();
-                valueCommonClass = ClassService.getInstance().findCommonParent(valueCommonClass, valueClass);
+                valueCommonClass = ClassService.getInstance().findCommonClassType(valueCommonClass, valueClass);
             }
             return IdentifierService.GENERIC_LEFT_BRACKET + keyCommonClass.getCanonicalName() + IdentifierService.GENERIC_COMMA + valueCommonClass.getCanonicalName() + IdentifierService.GENERIC_RIGHT_BRACKET;
          }
@@ -85,5 +88,30 @@ public class TypeService {
 //        }
 //        return commonClass;
 //    }
+
+
+    /**
+     * Find out if the argument is {@link Array} or {@link ParameterizedType} or not
+     * @param typeForReturning some type
+     * @return 'true' if the argument is {@link Array} or {@link ParameterizedType}
+     */
+    public boolean isCollectionOrArray(Type typeForReturning) {
+        return typeForReturning.getClass().isArray() || ParameterizedType.class.isAssignableFrom(typeForReturning.getClass());
+    }
+
+    public boolean isClassAssignableFromType(Class<?> clazz, Type type) {
+        if (type instanceof ParameterizedType) {
+            ParameterizedType parameterizedType = (ParameterizedType) type;
+            Type rawType = parameterizedType.getRawType();
+            if (rawType instanceof Class<?>) {
+                Class<?> rawTypeClass = (Class<?>) rawType;
+                return rawTypeClass.isAssignableFrom(clazz);
+            }
+        }
+        if (type instanceof Class) {
+            return clazz.isAssignableFrom((Class<?>)type);
+        }
+        throw new AppRuntimeException("Cannot determine type of " + type);
+    }
 
 }

@@ -1,12 +1,6 @@
 package com.apache.a4javadoc.javaagent.mapper;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
 
 import com.apache.a4javadoc.exception.AppRuntimeException;
@@ -34,7 +28,7 @@ public class ClassService {
     }
 
     /** Find out the first common class or interface from classes hierarchy. */
-    public Class<?> findCommonParent(Class<?> classLeft, Class<?> classRight) {
+    public Class<?> findCommonClassType(Class<?> classLeft, Class<?> classRight) {
         if (classLeft == null && classRight == null) {
             return null;
         }
@@ -87,7 +81,7 @@ public class ClassService {
     }
 
     /** Call the {@link #findParent(Class, List)} method. */
-    private List<Class<?>> findParents(Class<?> clazz) {
+    public List<Class<?>> findParents(Class<?> clazz) {
         List<Class<?>> result = new ArrayList<>();
         findParent(clazz, result);
         return result;
@@ -95,10 +89,28 @@ public class ClassService {
 
     /** Recursive method. Add clazz super class to result. */
     private void findParent(Class<?> clazz, List<Class<?>> result) {
-        Class<?> superclass = clazz.getSuperclass();
-        result.add(superclass);
-        if (Object.class != superclass) {
-            findParent(superclass, result);
+        if (clazz == null) {
+            return;
         }
+        Class<?> superclass = clazz.getSuperclass();
+        if (superclass != null) {
+            result.add(superclass);
+            if (Object.class != superclass) {
+                findParent(superclass, result);
+            }
+        }
+    }
+
+    /**
+     * Find out the most generic Class of the instances
+     * @param instances list of objects with the sane or different types
+     * @return {@link #findCommonClassType(Class, Class)}
+     */
+    public Class<?> findCommonClass(List<Object> instances) {
+        Class<?> result = null;
+        for (Object object : instances) {
+            result = findCommonClassType(result, object.getClass());
+        }
+        return result;
     }
 }
