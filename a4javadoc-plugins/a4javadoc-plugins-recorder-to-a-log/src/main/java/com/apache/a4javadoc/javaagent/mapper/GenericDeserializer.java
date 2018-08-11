@@ -91,11 +91,11 @@ public class GenericDeserializer extends StdDeserializer<Object> {
             throw new AppRuntimeException("Root node without defined field with key '" + GenericSerializer.GENERIC_KEY_ID + "' is not accepted. Is this JSON string serialized by '" + GenericSerializer.class.getCanonicalName() + "'?. RootNode: " + rootNode);
         }
         
-        return deserializeObject(rootNode, null, null, null, null);
+        return deserializeObject(rootNode, null, null, null, null, null);
     }
 
     /** TODO Kyrylo Semenko */
-    private Object deserializeObject(JsonNode currentNode, Class<?> defaultType, String defaultIdentifier, Object parentInstance, String fieldName) {
+    private Object deserializeObject(JsonNode currentNode, Class<?> defaultType, List<Class<?>> containerTypes, String defaultIdentifier, Object parentInstance, String fieldName) {
         try {
             Object instance = null;
             Class<?> clazz = null;
@@ -115,7 +115,7 @@ public class GenericDeserializer extends StdDeserializer<Object> {
             if (result != null) {
                 return result;
             }
-            instance = instantiate(clazz, currentNode, parentInstance, fieldName, identifier);
+            instance = instantiate(clazz, containerTypes, currentNode, parentInstance, fieldName, identifier);
             if (identifier != null) {
                 deserializedObjects.put(identifier, instance);
             }
@@ -127,16 +127,17 @@ public class GenericDeserializer extends StdDeserializer<Object> {
         }
     }
 
-    /** TODO  */
-    private Object instantiate(Class<?> clazz, JsonNode currentNode, Object parentInstance, String fieldName, String identifier) {
+    /** TODO  
+     * @param containerTypes */
+    private Object instantiate(Class<?> classForInstantiation, List<Class<?>> containerTypes, JsonNode currentNode, Object parentInstance, String fieldName, String identifier) {
         try {
-            if (clazz.getName().contains(START_ARRAY)) {
-                return instantiateArray(clazz, currentNode);
+            if (classForInstantiation.getName().contains(START_ARRAY)) {
+                return instantiateArray(classForInstantiation, currentNode);
             }
-            if (containsEmptyConstructor(clazz.getDeclaredConstructors())) {
-                return clazz.newInstance();
+            if (containsEmptyConstructor(classForInstantiation.getDeclaredConstructors())) {
+                return classForInstantiation.newInstance();
             }
-            return invokeFactoryOrNonemptyConstructor(currentNode, parentInstance, fieldName, clazz, identifier);
+            return invokeFactoryOrNonemptyConstructor(currentNode, parentInstance, fieldName, classForInstantiation, identifier);
         } catch (Exception e) {
             throw new AppRuntimeException(e);
         }
@@ -213,8 +214,8 @@ public class GenericDeserializer extends StdDeserializer<Object> {
             Iterator<JsonNode> iterator = jsonNode.iterator();
             while (iterator.hasNext()) {
                 JsonNode nextNode = iterator.next();
-                Object keyObject = deserializeObject(nextNode.get(0), keyClass, null, mapInstance, null);
-                Object valueObject = deserializeObject(nextNode.get(1), valueClass, null, mapInstance, null);
+                Object keyObject = deserializeObject(nextNode.get(0), keyClass, null, null, mapInstance, null);
+                Object valueObject = deserializeObject(nextNode.get(1), valueClass, null, null, mapInstance, null);
                 map.put(keyObject, valueObject);
             }
             return true;
@@ -241,19 +242,19 @@ public class GenericDeserializer extends StdDeserializer<Object> {
             }
             
             JsonNode genericKeyId = fieldNode.get(GenericSerializer.GENERIC_KEY_ID);
-            String genericKeyValue = genericKeyId.asText();
-            if (deserializedObjects.containsKey(genericKeyValue)) {
-                setToParent(parentInstance, fieldName, deserializedObjects.get(genericKeyValue));
+            String identifier = genericKeyId.asText();
+            if (deserializedObjects.containsKey(identifier)) {
+                setToParent(parentInstance, fieldName, deserializedObjects.get(identifier));
                 return;
             }
-            String className = IdentifierService.getInstance().findClassName(genericKeyValue);
+            String className = IdentifierService.getInstance().findClassName(identifier);
             clazz = Class.forName(className);
             JsonNode valueFieldNode = fieldNode.get(GenericSerializer.GENERIC_VALUE);
             Object value = null;
             if (ClassUtils.isPrimitiveOrWrapper(clazz)) {
                 value = setPrimitiveOrWrapper(valueFieldNode, clazz);
             } else {
-                value = deserializeObject(valueFieldNode, clazz, genericKeyValue, parentInstance, fieldName);
+                value = deserializeObject(valueFieldNode, clazz, null, identifier, parentInstance, fieldName);
             }
             setToParent(parentInstance, fieldName, value);
         } catch (Exception e) {
@@ -277,14 +278,14 @@ public class GenericDeserializer extends StdDeserializer<Object> {
             List<Object> parameters = new ArrayList<>();
             List<Class<?>> containerTypes = FieldService.getInstance().getContainerTypes(field, null, identifier);
             if (jsonNode.has(GenericSerializer.GENERIC_KEY_ID)) {
-//                Class<?> type = IdentifierService.getInstance().findClass(jsonNode.get(GenericSerializer.GENERIC_KEY_ID).asText());
                 JsonNode valueNode = jsonNode.get(GenericSerializer.GENERIC_VALUE);
                 Iterator<JsonNode> iterator = valueNode.iterator();
                 while (iterator.hasNext()) {
                     JsonNode nextNode = iterator.next();
                     Object nextObject = deserializeObject(
                             nextNode,
-                            containerTypes.get(0), // TODO je to nesmysl
+                            null,
+                            containerTypes,
                             jsonNode.get(GenericSerializer.GENERIC_KEY_ID).asText(),
                             parentInstance,
                             fieldName);
@@ -296,7 +297,8 @@ public class GenericDeserializer extends StdDeserializer<Object> {
                     JsonNode nextNode = iterator.next();
                     Object nextObject = deserializeObject(
                             nextNode,
-                            containerTypes.get(0), // TODO je to nesmysl
+                            null,
+                            containerTypes,
                             identifier,
                             parentInstance,
                             fieldName);
@@ -467,7 +469,6 @@ public class GenericDeserializer extends StdDeserializer<Object> {
             
             // Collection
             if (Collection.class.isAssignableFrom(fieldType)) {
-//            if (fieldType.isAssignableFrom(Collection.class)) {
                 @SuppressWarnings("unchecked")
                 Collection<Object> collection = (Collection<Object>) fieldType.newInstance();
                 int length = fieldNode.size();
@@ -475,7 +476,8 @@ public class GenericDeserializer extends StdDeserializer<Object> {
                     JsonNode childJsonNode = fieldNode.get(i);
                     collection.add(deserializeObject(
                             childJsonNode,
-                            FieldService.getInstance().getContainerTypes(field, null, null).get(0), // TODO je to nesmysl
+                            null,
+                            FieldService.getInstance().getContainerTypes(field, null, null),
                             null,
                             parentInstance,
                             fieldName));
@@ -485,7 +487,7 @@ public class GenericDeserializer extends StdDeserializer<Object> {
             }
             
             // Complex objects
-            Object value = deserializeObject(fieldNode, fieldType, null, parentInstance, fieldName);
+            Object value = deserializeObject(fieldNode, fieldType, null, null, parentInstance, fieldName);
             setToParent(parentInstance, fieldName, value);
         } catch (Exception e) {
             throw new AppRuntimeException(e);
@@ -547,7 +549,7 @@ public class GenericDeserializer extends StdDeserializer<Object> {
                 if (nextNode.isNull()) {
                     Array.set(array, position++, null);
                 } else {
-                    Array.set(array, position++, deserializeObject(nextNode, arrayType, null, null, null));
+                    Array.set(array, position++, deserializeObject(nextNode, arrayType, null, null, null, null));
                 }
             }
         }

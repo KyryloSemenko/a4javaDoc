@@ -4,9 +4,16 @@ import java.util.List;
 
 /** An object with wrapped dependency. For test purposes. */
 public class WrapperClass {
+    /** Primitive long for tests purposes */
     private long id;
+    
+    /** {@link WrapperClass} as for a circular dependency test */
     private WrapperClass parent;
+    
+    /** Primitive boolean for tests purposes */
     private boolean booleanValue;
+
+    /** List of {@link String}s without getter and setter for tests purposes */
     public List<String> nullWithoutGetterAndSetter;
     
     /** @return The {@link WrapperClass#id} field */

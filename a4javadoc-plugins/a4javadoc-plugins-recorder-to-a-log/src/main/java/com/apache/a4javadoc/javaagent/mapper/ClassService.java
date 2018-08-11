@@ -27,7 +27,12 @@ public class ClassService {
         return instance;
     }
 
-    /** Find out the first common class or interface from classes hierarchy. */
+    /**
+     * Find out the first common class or interface from classes hierarchy.
+     * @param classLeft the first class the common class to look for
+     * @param classRight the second class the common class to look for
+     * @return common class in sense of the {@link Class#isAssignableFrom(Class)} method
+     */
     public Class<?> findCommonClassType(Class<?> classLeft, Class<?> classRight) {
         if (classLeft == null && classRight == null) {
             return null;
@@ -49,20 +54,6 @@ public class ClassService {
         }
     }
 
-//    // TODO Auto-generated method stub
-//    private void findSuperClassesAndInterfaces(Class<?> clazz, ArrayList<Class<?>> superClassesAndInterfaces) {
-//        Class<?> superClass = clazz.getSuperclass();
-//        if (superClass != null) {
-//            superClassesAndInterfaces.add(superClass);
-//            findSuperClassesAndInterfaces(superClass, superClassesAndInterfaces);
-//        }
-//        Class<?>[] interfaces = clazz.getInterfaces();
-//        superClassesAndInterfaces.addAll(Arrays.asList(interfaces));
-//        for (Class<?> nextInterface : interfaces) {
-//            findSuperClassesAndInterfaces(nextInterface, superClassesAndInterfaces);
-//        }
-//    }
-
     /**
      * Find out first common class
      * @param leftList the first list
@@ -80,14 +71,22 @@ public class ClassService {
         throw new AppRuntimeException("Cannot find common class from two lists: " + leftList.toString() + " and " + rightList.toString());
     }
 
-    /** Call the {@link #findParent(Class, List)} method. */
+    /**
+     * Call the {@link #findParent(Class, List)} method.
+     * @param clazz the type to look for
+     * @return all parents, see a {@link #findParent(Class, List)} method.
+     */
     public List<Class<?>> findParents(Class<?> clazz) {
         List<Class<?>> result = new ArrayList<>();
         findParent(clazz, result);
         return result;
     }
 
-    /** Recursive method. Add clazz super class to result. */
+    /**
+     * Recursive method. Add clazz super class to result.
+     * @param clazz the type to look for
+     * @param result found classes
+     */
     private void findParent(Class<?> clazz, List<Class<?>> result) {
         if (clazz == null) {
             return;
@@ -112,5 +111,52 @@ public class ClassService {
             result = findCommonClassType(result, object.getClass());
         }
         return result;
+    }
+
+    /**
+     * Compares two classes after application a {@link #toWrapper(Class)} method.
+     * @param left the first class
+     * @param right the second class
+     * @return 'true' if the first and the second wrapped classes the same. For example <b>int</b> is the same as {@link Integer}
+     */
+    public boolean isClassesTheSame(Class<?> left, Class<?> right) {
+        return toWrapper(left) == toWrapper(right);
+    }
+    
+    /**
+     * If the type is primitive, wrap it to the wrapper.
+     * @param type primitive or wrapper
+     * @return wrapper. For example return {@link Integer} for <b>int</b> type.
+     */
+    private Class<?> toWrapper(Class<?> type) {
+        if (boolean.class == type) {
+            return Boolean.class;
+        }
+        
+        if (byte.class == type) {
+            return Byte.class;
+        }
+        
+        if (short.class == type) {
+            return Short.class;
+        }
+        
+        if (int.class == type) {
+            return Integer.class;
+        }
+        
+        if (long.class == type) {
+            return Long.class;
+        }
+        
+        if (float.class == type) {
+            return Float.class;
+        }
+        
+        if (double.class == type) {
+            return Double.class;
+        }
+        
+        return type;
     }
 }

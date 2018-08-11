@@ -16,7 +16,6 @@ import com.apache.a4javadoc.exception.AppRuntimeException;
  */
 public class TypeService {
     
-    private static final String EMPTY_STRING = "";
     private static TypeService instance;
     
     private TypeService() {
@@ -31,47 +30,6 @@ public class TypeService {
             instance = new TypeService();
         }
         return instance;
-    }
-
-    /**
-     * Generate a generic signature of a value, for example {@code <int,java.lang.String>}.
-     * Process {@link Iterable}s and {@link Map}s only.
-     * @param value object instance as a source of the signature
-     * @return an empty string if the value is not {@link Iterable} nor {@link Map}.
-     */
-    public String findOutGenericTypesSignature(Object value) {
-        Class<?> clazz = value.getClass();
-
-        if (Iterable.class.isAssignableFrom(clazz)) {
-            Iterable<?> iterable = (Iterable<?>) value;
-            Iterator<?> iterator = iterable.iterator();
-            Class<?> commonClass = null;
-            while (iterator.hasNext()) {
-                Object object = iterator.next();
-                Class<?> objectClass = object.getClass();
-                commonClass = ClassService.getInstance().findCommonClassType(commonClass, objectClass);
-            }
-            if (commonClass == null) {
-                throw new AppRuntimeException("closestClass cannot be null");
-            }
-            return IdentifierService.GENERIC_LEFT_BRACKET + commonClass.getCanonicalName() + IdentifierService.GENERIC_RIGHT_BRACKET;
-        }
-        if (Map.class.isAssignableFrom(clazz)) {
-            Map<?, ?> map = (Map<?, ?>) value;
-            Class<?> keyCommonClass = null;
-            Class<?> valueCommonClass = null;
-            for (Object object : map.entrySet()) {
-                Entry<?, ?> entry = (Entry<?, ?>) object;
-                // key
-                Class<?> keyClass = entry.getKey().getClass();
-                keyCommonClass = ClassService.getInstance().findCommonClassType(keyCommonClass, keyClass);
-                // value
-                Class<?> valueClass = entry.getValue().getClass();
-                valueCommonClass = ClassService.getInstance().findCommonClassType(valueCommonClass, valueClass);
-            }
-            return IdentifierService.GENERIC_LEFT_BRACKET + keyCommonClass.getCanonicalName() + IdentifierService.GENERIC_COMMA + valueCommonClass.getCanonicalName() + IdentifierService.GENERIC_RIGHT_BRACKET;
-         }
-        return EMPTY_STRING;
     }
 
 //    /** TODO */

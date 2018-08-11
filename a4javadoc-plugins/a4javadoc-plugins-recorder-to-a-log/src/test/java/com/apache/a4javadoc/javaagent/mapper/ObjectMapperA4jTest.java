@@ -5,6 +5,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.StringWriter;
+import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -21,10 +22,10 @@ import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Table;
 
 /**
- * Root object of object graph should contain a class type, for example <pre>java.lang.String</pre><br>
- * Root object of object graph should contain a class type, for example <pre>int</pre><br>
- * Fields of JSON should contain a class type in case when the type cannot be obtained from a field when deserializing.
- * For example {@link List} or array of Objects where each item can have a different type. In general when the items contain different types.
+ * Root object of object graph should contain a class type, for example <b>java.lang.String</b> or <b>ing</b><br>
+ * Fields of JSON should contain a class type in case when the type cannot be obtained from a field during deserialization.
+ * For example {@link List} or array of Objects where items can have a different types.
+ * In general when the {@link Field} item contains another type then an object the {@link Field} contains.
  * TODO Kyrylo Semenko doplnit testy dle pravidel popsaných výše.
  * 
  * @author Kyrylo Semenko
@@ -67,6 +68,34 @@ public class ObjectMapperA4jTest {
     }
     
     /**
+     * Test method for {@link GenericDeserializer} with circular dependency in JSON.
+     */
+    @Test
+    public void testListWithoutGetter() {
+        WrapperClass wrapperClass = new WrapperClass();
+        List<String> list = Arrays.asList("a", "b");
+        wrapperClass.nullWithoutGetterAndSetter = list;
+        wrapperClass.setParent(wrapperClass);
+        
+        ObjectMapperA4j objectMapperA4j = ObjectMapperA4j.getInstance();
+        StringWriter stringWriter = new StringWriter();
+        objectMapperA4j.writeValue(stringWriter, wrapperClass);
+        
+        String json = stringWriter.toString();
+        
+        System.out.println(json);
+        
+        Object object = objectMapperA4j.readValue(json, Object.class);
+        
+        assertTrue(object instanceof WrapperClass);
+        WrapperClass deserializedObject = (WrapperClass) object;
+        
+        assertEquals(wrapperClass.nullWithoutGetterAndSetter, deserializedObject.nullWithoutGetterAndSetter);
+        assertEquals(deserializedObject, deserializedObject.getParent());
+        assertEquals(wrapperClass.nullWithoutGetterAndSetter, deserializedObject.nullWithoutGetterAndSetter);
+    }
+    
+    /**
      * Test method for {@link GenericDeserializer} with null value
      */
     @Test
@@ -94,6 +123,12 @@ public class ObjectMapperA4jTest {
             Container container = new Container();
             container.setListOfStrings(Arrays.asList("a", "b"));
         
+            long objectMapperStart = System.nanoTime();
+            StringWriter stringWriterOM = new StringWriter();
+            objectMapper.writeValue(stringWriterOM, container);
+            System.out.println(stringWriterOM);
+            long objectMapperTime = System.nanoTime() - objectMapperStart;
+            
             long a4start = System.nanoTime();
             StringWriter stringWriter = new StringWriter();
             objectMapperA4j.writeValue(stringWriter, container);
@@ -101,14 +136,11 @@ public class ObjectMapperA4jTest {
             System.out.println(json);
             long a4time = System.nanoTime() - a4start;
             
-            long objectMapperStart = System.nanoTime();
-            StringWriter stringWriterOM = new StringWriter();
-            objectMapper.writeValue(stringWriterOM, container);
-            System.out.println(stringWriterOM);
-            long objectMapperTime = System.nanoTime() - objectMapperStart;
+            System.out.println("a4time in milliseconds: " + a4time/1000000);
+            System.out.println("OMtime in milliseconds: " + objectMapperTime/1000000);
             
-            System.out.println("a4time in milliseconds: " + a4time/1000);
-            System.out.println("OMtime in milliseconds: " + objectMapperTime/1000);
+            System.out.println("a4time in nanoseconds: " + a4time);
+            System.out.println("OMtime in nanoseconds: " + objectMapperTime);
             
             Object object = objectMapperA4j.readValue(json, Object.class);
             
@@ -116,7 +148,6 @@ public class ObjectMapperA4jTest {
             
             assertTrue(EqualsBuilder.reflectionEquals(container, object));
         } catch (Exception e) {
-            // TODO Kyrylo Semenko
             throw new AppRuntimeException(e);
         }
     }
@@ -136,7 +167,6 @@ public class ObjectMapperA4jTest {
         try {
             System.out.println(new ObjectMapper().writeValueAsString(container));
         } catch (JsonProcessingException e) {
-            // TODO Kyrylo Semenko
             throw new AppRuntimeException(e);
         }
         

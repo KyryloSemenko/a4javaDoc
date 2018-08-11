@@ -6,7 +6,6 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
 
 import com.apache.a4javadoc.exception.AppRuntimeException;
@@ -34,10 +33,9 @@ public class FieldService {
     }
 
     /**
-     * Get fields from a source instance.
+     * Get fields of an object instance from the argument.
      * @param sourceObject the fields source
      * @return fields from this sourceObjecta and all its parents recursively
-     * 
      */
     public List<Field> getFields(Object sourceObject) {
         List<Field> result = new ArrayList<>();
@@ -55,24 +53,24 @@ public class FieldService {
     /**
      * Has the field to be serialized?
      * @param field a data source
-     * @return false if the field is synthetic or static
+     * @return 'false' if the field is synthetic or static or transient
      */
     public boolean isValidField(Field field) {
-        return !field.isSynthetic() && !Modifier.isStatic(field.getModifiers());
+        return !field.isSynthetic()
+                && !Modifier.isStatic(field.getModifiers())
+                && !Modifier.isTransient(field.getModifiers());
     }
 
-//    /** TODO Kyrylo Semenko stejny jako {@link #getContainerType(Field, Object)}? */
-//    public Class<? extends Object> getContainerType(Field field) {
-//        // Collections
-//        if (Collection.class.isAssignableFrom(field.getType())) {
-//            ParameterizedType parameterizedFieldType = (ParameterizedType) field.getGenericType();
-//            return (Class<?>) parameterizedFieldType.getActualTypeArguments()[0];
-//        }
-//        // Arrays or other objects
-//        return field.getType();
-//    }
-
-    /** TODO Kyrylo Semenko  */
+    /**
+     * Collect types of the identifier or fieldObject or field from arguments.<br>
+     * If the identifier argument is not null, process it.<br>
+     * Else if the fieldObject argument is not null, process it.<br>
+     * Else process field argument.<br>
+     * @param field the data source
+     * @param fieldObject the data source
+     * @param identifier  the data source
+     * @return {@link Class}es of parameters for {@link ParameterizedType}s or a single {@link Class} for other data sources
+     */
     public List<Class<?>> getContainerTypes(Field field, Object fieldObject, String identifier) {
         if (identifier != null) {
             return IdentifierService.getInstance().findGenericTypes(identifier);
