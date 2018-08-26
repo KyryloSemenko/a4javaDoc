@@ -93,23 +93,33 @@ public class FieldService {
             return Arrays.asList(result);
         }
         if (field != null) {
-            // Arrays
-            if (field.getType().isArray()) {
-                return Arrays.asList(field.getType().getComponentType());
-            }
-            // Collections and Maps
-            Type type = field.getGenericType();
-            if (type instanceof ParameterizedType) {
-                Type[] types = ((ParameterizedType) type).getActualTypeArguments();
-                List<Class<?>> result = new ArrayList<>();
-                for (Type nextType : types) {
-                    result.add((Class<?>) nextType);
-                }
-                return result;
-            }
+            return findArrayOrParameterizedTypeClasses(field);
         }
         // Other objects
         throw new AppRuntimeException("The field '" + field + "' is not Array nor ParameterizedType");
+    }
+
+    /**
+     * If the {@link Field} is an array, return {@link Class#getComponentType()}.<br>
+     * If the {@link Field} is a {@link ParameterizedType}, return {@link ParameterizedType#getActualTypeArguments()}.
+     * @param field the source
+     * @return the {@link List} of classes or the empty {@link List}
+     */
+    public List<Class<?>> findArrayOrParameterizedTypeClasses(Field field) {
+        List<Class<?>> result = new ArrayList<>();
+        // Arrays
+        if (field.getType().isArray()) {
+            result.add(field.getType().getComponentType());
+        }
+        // Collections and Maps
+        Type type = field.getGenericType();
+        if (type instanceof ParameterizedType) {
+            Type[] types = ((ParameterizedType) type).getActualTypeArguments();
+            for (Type nextType : types) {
+                result.add((Class<?>) nextType);
+            }
+        }
+        return result;
     }
 
 }

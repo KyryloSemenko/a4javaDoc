@@ -1,5 +1,9 @@
 package com.apache.a4javadoc.javaagent.mapper;
 
+import java.io.File;
+import java.io.IOException;
+import java.lang.reflect.Field;
+import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -10,6 +14,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import com.apache.a4javadoc.exception.AppRuntimeException;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.databind.JsonNode;
 
 /**
  * Stateless singleton for working objects identifier.
@@ -17,6 +23,14 @@ import com.apache.a4javadoc.exception.AppRuntimeException;
  * @author Kyrylo Semenko
  */
 public class IdentifierService {
+
+    private static final String CONTAINER_TYPES_FIELD_NAME = "containerTypes";
+
+    private static final String OBJECT_CLASS_FIELD_NAME = "objectClass";
+
+    private static final String CONTAINER_TYPE_FIELD_NAME = "containerType";
+
+    private static final String HASH_FIELD_NAME = "hash";
 
     /** A left bracket for example in the <pre>{@code "ArrayList<java.lang.String>}@fe2"</pre> identifier **/
     public static final String GENERIC_LEFT_BRACKET = "<";
@@ -401,21 +415,21 @@ public class IdentifierService {
         }
     }
 
-    /**
-     * @deprecated
-     * Parse an argument and create the {@link Identifier} of some instance of object.
-     * @param identifierString see the {@link Identifier#getSource()} field
-     * @return {@link Identifier} - an object representation of the argument
-     */
-    public Identifier parse(String identifierString) {
-        Identifier identifier = new Identifier();
-//        identifier.setSource(identifierString);
-        
-        ContainerType containerType = parseContainerType(identifierString);
-        identifier.setContainerType(containerType);
-        
-        return identifier;
-    }
+//    /**
+//     * @deprecated
+//     * Parse an argument and create the {@link Identifier} of some instance of object.
+//     * @param identifierString see the {@link Identifier#getSource()} field
+//     * @return {@link Identifier} - an object representation of the argument
+//     */
+//    public Identifier parse(String identifierString) {
+//        Identifier identifier = new Identifier();
+////        identifier.setSource(identifierString);
+//        
+//        ContainerType containerType = parseContainerType(identifierString);
+//        identifier.setContainerType(containerType);
+//        
+//        return identifier;
+//    }
 
     /**
      * @deprecated
@@ -440,6 +454,7 @@ public class IdentifierService {
     }
 
     /**
+     * @deprecated
      * Recursive method.
      * @param identifierString the data source
      * @param containerTypes the result
@@ -460,7 +475,111 @@ public class IdentifierService {
 //        for (int i = 0; i < parts.length; i++) {
 //        }
     }
+    /**
+     * Create JSON from the {@link Identifier}. Create for example
+     * <pre>
+     * {"hash":"66ccfbd8","containerType":{"objectClass":"com.apache.a4javadoc.javaagent.mapper.WrapperClass","containerTypes":[]}}
+     * </pre>
+     * @param identifier the JSON source
+     * @param jsonGenerator the JSON holder
+     * 
+     * @throws IOException 
+     */
+    public void processIdentifier(Identifier identifier, JsonGenerator jsonGenerator) throws IOException {
+        jsonGenerator.writeStartObject();
+        jsonGenerator.writeStringField(HASH_FIELD_NAME, identifier.getHash());
+        jsonGenerator.writeObjectFieldStart(CONTAINER_TYPE_FIELD_NAME);
+        processIdentifierContainerType(identifier.getContainerType(), jsonGenerator);
+        jsonGenerator.writeEndObject();
+        jsonGenerator.writeEndObject();
+    }
 
+    /**
+     * Recursive method. Create JSON from the {@link ContainerType}. Create for example
+     * <pre>
+     * "containerType":{"objectClass":"com.apache.a4javadoc.javaagent.mapper.WrapperClass","containerTypes":[]}
+     * </pre>
+     * @param containerType the JSON source
+     * @param jsonGenerator the JSON holder
+     * @throws IOException 
+     */
+    private void processIdentifierContainerType(ContainerType containerType, JsonGenerator jsonGenerator) throws IOException {
+        jsonGenerator.writeStringField(OBJECT_CLASS_FIELD_NAME, containerType.getObjectClass().getName());
+        jsonGenerator.writeArrayFieldStart(CONTAINER_TYPES_FIELD_NAME);
+        for (ContainerType innerContainerType : containerType.getContainerTypes()) {
+            jsonGenerator.writeStartObject();
+            processIdentifierContainerType(innerContainerType, jsonGenerator);
+            jsonGenerator.writeEndObject();
+        }
+        jsonGenerator.writeEndArray();
+    }
 
+    /**
+     * Create {@link Identifier} from the {@link JsonNode}
+     * @param jsonNode the source
+     * @return {@link Identifier} created from the {@link JsonNode}
+     */
+    public Identifier createIdentifierFromJsonNode(JsonNode jsonNode) {
+        Identifier identifier = new Identifier();
+        identifier.setHash(jsonNode.get(HASH_FIELD_NAME).asText());
+
+        JsonNode containerTypeNode = jsonNode.get(CONTAINER_TYPE_FIELD_NAME);
+        
+        identifier.setContainerType(createContainerType(containerTypeNode));
+        
+        return identifier;
+    }
+
+    /**
+     * Recursive method. Create {@link ContainerType} from the {@link JsonNode}.
+     * @param jsonNode the source
+     * @return {@link ContainerType} created from the {@link JsonNode}
+     */
+    private ContainerType createContainerType(JsonNode jsonNode) {
+        try {
+            ContainerType containerType = new ContainerType();
+            containerType.setObjectClass(Class.forName(jsonNode.get(OBJECT_CLASS_FIELD_NAME).asText()));
+            
+            Iterator<JsonNode> iterator = jsonNode.get(CONTAINER_TYPES_FIELD_NAME).iterator();
+            while (iterator.hasNext()) {
+                containerType.getContainerTypes().add(createContainerType(iterator.next()));
+            }
+            
+            return containerType;
+        } catch (Exception e) {
+            throw new AppRuntimeException(e);
+        }
+    }
+
+    /**
+     * Generate the {@link Identifier} from a {@link Field}. This {@link File} name is defined in the {@link JsonNode}
+     * and its properties defined in the parentInstance.
+     * @param jsonNode contains the {@link Field} name and value.
+     * @param parentInstance enclosing object of the {@link Field}. Cannot be 'null'.
+     * @return {@link Identifier} created from the {@link Field}
+     */
+    public Identifier generateIdentifier(JsonNode jsonNode, Object parentInstance) {
+        if (parentInstance == null) {
+            throw new AppRuntimeException("In this case the parentInstance cannot be 'null'. JsonNode: " + jsonNode);
+        }
+        try {
+            Field field = parentInstance.getClass().getDeclaredField(jsonNode.asText());
+            Identifier identifier = new Identifier();
+            ContainerType containerType = new ContainerType();
+            containerType.setObjectClass(field.getDeclaringClass());
+            if (field.getDeclaringClass().isArray() || field.getGenericType() instanceof ParameterizedType) {
+                List<Class<?>> classes = FieldService.getInstance().findArrayOrParameterizedTypeClasses(field);
+                for (Class<?> clazz : classes) {
+                    ContainerType nextContainerType = new ContainerType();
+                    nextContainerType.setObjectClass(clazz);
+                    containerType.getContainerTypes().add(nextContainerType);
+                }
+            }
+            identifier.setContainerType(containerType);
+            return identifier;
+        } catch (Exception e) {
+            throw new AppRuntimeException(e);
+        }
+    }
 
 }

@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory;
 import com.apache.a4javadoc.exception.AppRuntimeException;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.ser.impl.WritableObjectId;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 
 /**
@@ -65,7 +66,12 @@ public class GenericSerializer extends StdSerializer<Object> {
                 return;
             }
             
-            String identifier = IdentifierService.getInstance().generateIdentifier(sourceObject);
+            if (sourceObject instanceof Identifier) {
+                IdentifierService.getInstance().processIdentifier((Identifier) sourceObject, jsonGenerator);
+                return;
+            }
+            
+            Identifier identifier = IdentifierService.getInstance().createIdentifier(sourceObject);
             
             if (genericSerializerProvider.getSerializedObjects().contains(sourceObject)) {
                 if (field != null) {
@@ -73,7 +79,55 @@ public class GenericSerializer extends StdSerializer<Object> {
                 } else {
                     jsonGenerator.writeStartObject();
                 }
-                jsonGenerator.writeStringField(GENERIC_KEY_ID, identifier);
+                
+                jsonGenerator.writeObjectField(GENERIC_KEY_ID, identifier);
+                jsonGenerator.writeEndObject();
+                return;
+            }
+            
+            if (!appendGenericId) {
+                identifier = null;
+            }
+            
+            if (processPrimitiveOrWrapperOrString(jsonGenerator, sourceObject, identifier, field)) {
+                return;
+            }
+      
+            if (processArrayOrList(field, sourceObject, jsonGenerator, genericSerializerProvider, depth, rootObject, identifier)) {
+                return;
+            }
+            
+            if (processMap(field, sourceObject, jsonGenerator, genericSerializerProvider, depth, rootObject, identifier)) {
+                return;
+            }
+            
+            if (processMapEntry(field, sourceObject, jsonGenerator, genericSerializerProvider, depth, rootObject, identifier)) {
+                return;
+            }
+            
+            processOtherObject(field, sourceObject, jsonGenerator, genericSerializerProvider, depth, rootObject, identifier);
+            
+        } catch (Exception e) {
+            throw new AppRuntimeException(e);
+        }
+    }
+    
+    // TODO Kyrylo Semenko
+    private void serializeObjectBack(Field field, Object sourceObject, JsonGenerator jsonGenerator, GenericSerializerProvider genericSerializerProvider, int depth, Object rootObject, boolean appendGenericId) {
+        try {
+            if (processNull(field, sourceObject, jsonGenerator)) {
+                return;
+            }
+            
+            Identifier identifier = IdentifierService.getInstance().createIdentifier(sourceObject);
+            
+            if (genericSerializerProvider.getSerializedObjects().contains(sourceObject)) {
+                if (field != null) {
+                    jsonGenerator.writeObjectFieldStart(field.getName());
+                } else {
+                    jsonGenerator.writeStartObject();
+                }
+                jsonGenerator.writeObjectField(GENERIC_KEY_ID, identifier);
                 jsonGenerator.writeEndObject();
                 return;
             }
@@ -106,7 +160,7 @@ public class GenericSerializer extends StdSerializer<Object> {
     }
 
     /** TODO */
-    private void processOtherObject(Field field, Object sourceObject, JsonGenerator jsonGenerator, GenericSerializerProvider genericSerializerProvider, int depth, Object rootObject, String identifier) {
+    private void processOtherObject(Field field, Object sourceObject, JsonGenerator jsonGenerator, GenericSerializerProvider genericSerializerProvider, int depth, Object rootObject, Identifier identifier) {
         try {
             //header
             if (field != null) {
@@ -118,7 +172,7 @@ public class GenericSerializer extends StdSerializer<Object> {
             // body
             if (identifier != null
                     && (field == null || !ClassService.getInstance().isClassesTheSame(field.getType(), sourceObject.getClass()))) {
-                jsonGenerator.writeStringField(GENERIC_KEY_ID, identifier);
+                jsonGenerator.writeObjectField(GENERIC_KEY_ID, identifier);
                 genericSerializerProvider.getSerializedObjects().add(sourceObject);
                 jsonGenerator.writeObjectFieldStart(GENERIC_VALUE);
             }
@@ -165,7 +219,7 @@ public class GenericSerializer extends StdSerializer<Object> {
     }
 
     /** TODO Kyrylo Semenko */
-    private boolean processArrayOrList(Field field, Object fieldObject, JsonGenerator jsonGenerator, GenericSerializerProvider genericSerializerProvider, int depth, Object rootObject, String identifier) {
+    private boolean processArrayOrList(Field field, Object fieldObject, JsonGenerator jsonGenerator, GenericSerializerProvider genericSerializerProvider, int depth, Object rootObject, Identifier identifier) {
         try {
             if (isArrayOrCollection(fieldObject)) {
                 
@@ -180,7 +234,7 @@ public class GenericSerializer extends StdSerializer<Object> {
                     } else {
                         jsonGenerator.writeStartObject();
                     }
-                    jsonGenerator.writeStringField(GENERIC_KEY_ID, identifier);
+                    jsonGenerator.writeObjectField(GENERIC_KEY_ID, identifier);
                     jsonGenerator.writeArrayFieldStart(GENERIC_VALUE);
                 } else {
                     if (field != null) {
@@ -225,7 +279,7 @@ public class GenericSerializer extends StdSerializer<Object> {
                  An example in context of the enclosing object:
                  {"_a4id":"java.util.TreeMap@370b5","value":[["1","one"],["2","two"]]}
      */
-    private boolean processMap(Field field, Object fieldObject, JsonGenerator jsonGenerator, GenericSerializerProvider genericSerializerProvider, int depth, Object rootObject, String identifier) {
+    private boolean processMap(Field field, Object fieldObject, JsonGenerator jsonGenerator, GenericSerializerProvider genericSerializerProvider, int depth, Object rootObject, Identifier identifier) {
         try {
             if (isMap(fieldObject)) {
                 
@@ -241,7 +295,7 @@ public class GenericSerializer extends StdSerializer<Object> {
                     } else {
                         jsonGenerator.writeStartObject();
                     }
-                    jsonGenerator.writeStringField(GENERIC_KEY_ID, identifier);
+                    jsonGenerator.writeObjectField(GENERIC_KEY_ID, identifier);
                     jsonGenerator.writeArrayFieldStart(GENERIC_VALUE);
                 } else {
                     jsonGenerator.writeStartArray();
@@ -270,7 +324,7 @@ public class GenericSerializer extends StdSerializer<Object> {
         }
     }
     
-    private boolean processMapEntry(Field field, Object fieldObject, JsonGenerator jsonGenerator, GenericSerializerProvider genericSerializerProvider, int depth, Object rootObject, String identifier) {
+    private boolean processMapEntry(Field field, Object fieldObject, JsonGenerator jsonGenerator, GenericSerializerProvider genericSerializerProvider, int depth, Object rootObject, Identifier identifier) {
         try {
             if (fieldObject instanceof Map.Entry<?, ?>) {
                 
@@ -283,7 +337,7 @@ public class GenericSerializer extends StdSerializer<Object> {
                     } else {
                         jsonGenerator.writeStartObject();
                     }
-                    jsonGenerator.writeStringField(GENERIC_KEY_ID, identifier);
+                    jsonGenerator.writeObjectField(GENERIC_KEY_ID, identifier);
                     jsonGenerator.writeArrayFieldStart(GENERIC_VALUE);
                 } else {
                     jsonGenerator.writeStartArray();
@@ -364,14 +418,14 @@ public class GenericSerializer extends StdSerializer<Object> {
      * @param identifier if not null, a {@link #GENERIC_KEY_ID} and {@link IdentifierService#GENERIC_VALUE_SEPARATOR} will be inserted to JSON
      * @param field if not null, used for comparison of object type and field type
      */
-    private boolean processPrimitiveOrWrapperOrString(JsonGenerator jsonGenerator, Object object, String identifier, Field field) throws IOException {
+    private boolean processPrimitiveOrWrapperOrString(JsonGenerator jsonGenerator, Object object, Identifier identifier, Field field) throws IOException {
         if (ClassUtils.isPrimitiveOrWrapper(object.getClass()) || object instanceof String) {
             
             boolean classesTheSame = field != null && ClassService.getInstance().isClassesTheSame(field.getType(), object.getClass());
             
             if (identifier != null && !classesTheSame) {
                 jsonGenerator.writeStartObject();
-                jsonGenerator.writeStringField(GENERIC_KEY_ID, identifier);
+                jsonGenerator.writeObjectField(GENERIC_KEY_ID, identifier);
                 jsonGenerator.writeStringField(GENERIC_VALUE, object.toString());
                 jsonGenerator.writeEndObject();
             } else {

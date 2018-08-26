@@ -13,8 +13,6 @@ import java.util.Map;
 
 import org.junit.Test;
 
-import com.apache.a4javadoc.exception.AppRuntimeException;
-
 /** 
  * @author Kyrylo Semenko
  */
