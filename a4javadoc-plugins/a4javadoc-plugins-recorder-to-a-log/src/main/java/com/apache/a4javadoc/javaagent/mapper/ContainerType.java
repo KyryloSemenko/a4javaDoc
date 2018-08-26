@@ -14,12 +14,22 @@ import org.apache.commons.lang3.builder.ToStringStyle;
  */
 public class ContainerType {
     
-    /** {@link Class#getCanonicalName()} */
-    private String className;
+    /** {@link Class} of the object represented by this {@link ContainerType} */
+    private Class<?> objectClass;
     
     /** Can be empty if the object is not array nor generic */
     private List<ContainerType> containerTypes;
     
+    /** @return The {@link ContainerType#objectClass} field */
+    public Class<?> getObjectClass() {
+        return objectClass;
+    }
+
+    /** @param objectClass see the {@link ContainerType#objectClass} field */
+    public void setObjectClass(Class<?> objectClass) {
+        this.objectClass = objectClass;
+    }
+
     /** 
      * This constructor initializes an empty {@link #containerTypes}.
      */
@@ -49,16 +59,6 @@ public class ContainerType {
     @Override
     public boolean equals(Object otherObject) {
         return EqualsBuilder.reflectionEquals(this, otherObject);
-    }
-
-    /** @return The {@link ContainerType#className} field */
-    public String getClassName() {
-        return className;
-    }
-
-    /** @param className see the {@link ContainerType#className} field */
-    public void setClassName(String className) {
-        this.className = className;
     }
 
     /** @return The {@link ContainerType#containerTypes} field */

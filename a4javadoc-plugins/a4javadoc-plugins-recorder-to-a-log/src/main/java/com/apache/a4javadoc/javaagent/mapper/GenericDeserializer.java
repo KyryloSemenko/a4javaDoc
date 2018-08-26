@@ -1,23 +1,9 @@
 package com.apache.a4javadoc.javaagent.mapper;
 
 import java.io.IOException;
-import java.lang.reflect.Array;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
-import java.lang.reflect.Type;
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.lang3.ClassUtils;
-
-import com.apache.a4javadoc.exception.AppRuntimeException;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -30,37 +16,6 @@ import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
  */
 @SuppressWarnings("serial")
 public class GenericDeserializer extends StdDeserializer<Object> {
-    
-    /** See <a href="https://docs.oracle.com/javase/7/docs/api/java/lang/Class.html#getName%28%29">Class javaDoc</a> */
-    private static final String TYPE_ENCODING_PRIMITIVE_SHORT_S = "S";
-    
-    /** See <a href="https://docs.oracle.com/javase/7/docs/api/java/lang/Class.html#getName%28%29">Class javaDoc</a> */
-    private static final String TYPE_ENCODING_PRIMITIVE_LONG_J = "J";
-    
-    /** See <a href="https://docs.oracle.com/javase/7/docs/api/java/lang/Class.html#getName%28%29">Class javaDoc</a> */
-    private static final String TYPE_ENCODING_PRIMITIVE_INT_I = "I";
-    
-    /** See <a href="https://docs.oracle.com/javase/7/docs/api/java/lang/Class.html#getName%28%29">Class javaDoc</a> */
-    private static final String TYPE_ENCODING_PRIMITIVE_FLOAT_F = "F";
-    
-    /** See <a href="https://docs.oracle.com/javase/7/docs/api/java/lang/Class.html#getName%28%29">Class javaDoc</a> */
-    private static final String TYPE_ENCODING_PRIMITIVE_DOUBLE_D = "D";
-    
-    /** See <a href="https://docs.oracle.com/javase/7/docs/api/java/lang/Class.html#getName%28%29">Class javaDoc</a> */
-    private static final String TYPE_ENCODING_PRIMITIVE_CHAR_C = "C";
-    
-    /** See <a href="https://docs.oracle.com/javase/7/docs/api/java/lang/Class.html#getName%28%29">Class javaDoc</a> */
-    private static final String TYPE_ENCODING_PRIMITIVE_BYTE_B = "B";
-    
-    /** See <a href="https://docs.oracle.com/javase/7/docs/api/java/lang/Class.html#getName%28%29">Class javaDoc</a> */
-    private static final String TYPE_ENCODING_PRIMITIVE_BOOLEAN_Z = "Z";
-    
-    /** See <a href="https://docs.oracle.com/javase/7/docs/api/java/lang/Class.html#getName%28%29">Class javaDoc</a> */
-    private static final String CLASS_OR_INTERFACE_ARRAY_PREFIX = "L";
-    
-    private static final String ARRAY_OBJECT_SUFFIX = ";";
-    private static final String ARRAY_LEFT_BRACKET = "\\[";
-    private static final String START_ARRAY = "[";
     
     /**
      * Values of this map contains already deserialized objects. The keys of the map contains generic identifiers,

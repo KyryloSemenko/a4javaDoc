@@ -4,13 +4,10 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-
-import org.apache.commons.lang3.NotImplementedException;
 
 import com.apache.a4javadoc.exception.AppRuntimeException;
 
@@ -71,13 +68,11 @@ public class IdentifierService {
         setContainerTypes(value, containerType, 1);
         
         return identifier;
-//        return value.getClass().getName()
-//                + generateGenericSignature(value)
-//                + GENERIC_VALUE_SEPARATOR
-//                + Integer.toHexString(value.hashCode());
     }
     
-    // TODO Kyrylo Semenko smazat
+    /**
+     * @deprecated
+     */
     public String generateIdentifier(Object value) {
         return value.getClass().getName()
                 + generateGenericSignature(value)
@@ -89,14 +84,14 @@ public class IdentifierService {
      * Find out generic types of the value, for example {@code <java.lang.String,java.lang.String>}.
      * @param value object instance as a source of the generic types
      * @param containerType this object will be completed by generic types, see {@link ContainerType#setContainerTypes(List)}.
-     * @param depth Plunging depth of this {@link ContainerType}, beginning from 1. Max depth defined in {@link #maxDepth}.
+     * @param depth Plunging depth of this {@link ContainerType}, beginning from 1. Max depth defined in {@link ConfigService#getMaxDepth()}.
      */
     public void setContainerTypes(Object value, ContainerType containerType, int depth) {
         if (depth > ConfigService.getInstance().getMaxDepth()) {
             return;
         }
         Class<?> clazz = value.getClass();
-        containerType.setClassName(value.getClass().getName());
+        containerType.setObjectClass(value.getClass());
         
         if (Iterable.class.isAssignableFrom(clazz)) {
             Iterable<?> iterable = (Iterable<?>) value;
@@ -111,6 +106,7 @@ public class IdentifierService {
     }
 
     /**
+     * @deprecated
      * Generate a generic signature of a value, for example {@code <java.lang.String,java.lang.String>}.
      * Process {@link Iterable}s and {@link Map}s only.
      * @param value object instance as a source of the signature
@@ -131,6 +127,7 @@ public class IdentifierService {
     }
 
     /**
+     * @deprecated
      * Generate a generic signature of the {@link Map} from the argument.
      * @param map object instance as a source of the signature
      * @return for example {@code <java.lang.String,java.lang.String>}.<br>
@@ -195,86 +192,76 @@ public class IdentifierService {
      * If the inner items are generic, return for example {@code <java.util.ArrayList<java.lang.String>>}
      */
     private void findGeneralItemsTypeOfIterable(Iterable<?> iterable, ContainerType containerType, int depth) {
-        Boolean allValuesContainsObjectsWithTheSameType = true;
-        ContainerType commonContainerType = null;
+        ContainerType commonContainerType = new ContainerType();
         Iterator<?> valuesIterator = iterable.iterator();
         while (valuesIterator.hasNext()) {
             Object object = valuesIterator.next();
-            ContainerType nextContainerType = new ContainerType();
-            setContainerTypes(object, nextContainerType, depth + 1);
-            if (nextContainerType.getClassName() == null) {
-                // max depth achieved
-                return;
-            }
-            if (commonContainerType == null) {
-                commonContainerType = nextContainerType;
-            } else {
-                if (!commonContainerType.equals(nextContainerType)) {
-                    allValuesContainsObjectsWithTheSameType = false;
-                    break;
-                }
-            }
+            ContainerType currentContainerType = new ContainerType();
+            
+            setContainerTypes(object, currentContainerType, depth + 1);
+            mergeToCommonContainer(currentContainerType, commonContainerType);
         }
-        if (allValuesContainsObjectsWithTheSameType) {
+        if (commonContainerType.getObjectClass() != null) {
             containerType.getContainerTypes().add(commonContainerType);
         }
     }
 
     /**
+     * Compare two {@link ContainerType}s and theirs {@link ContainerType#getContainerTypes()} recursively.<br>
+     * If the common {@link ContainerType#getContainerTypes()} is empty,
+     * copy all containerTypes from current {@link ContainerType#getContainerTypes()} to common {@link ContainerType#getContainerTypes()}.<br>
+     * 
+     * Find out common class, of current and common {@link ContainerType#getObjectClass()}es by the {@link ClassService#findCommonClassType(Class, Class)} method
+     * and set it to the common {@link ContainerType#setObjectClass(Class)}.
+     * 
+     * @param currentContainerType will be merged to commonContainerType
+     * @param commonContainerType will be updated by currentContainerType properties
+     */
+    private void mergeToCommonContainer(ContainerType currentContainerType, ContainerType commonContainerType) {
+        commonContainerType.setObjectClass(ClassService.getInstance().findCommonClassType(currentContainerType.getObjectClass(), commonContainerType.getObjectClass()));
+        if (commonContainerType.getContainerTypes().isEmpty()) {
+            commonContainerType.setContainerTypes(currentContainerType.getContainerTypes());
+            return;
+        } else {
+            for (int i = 0; i < currentContainerType.getContainerTypes().size(); i++) {
+                ContainerType nextCurrentContainerType = currentContainerType.getContainerTypes().get(i);
+                ContainerType nextCommonContainerType = commonContainerType.getContainerTypes().get(i);
+                mergeToCommonContainer(nextCurrentContainerType, nextCommonContainerType);
+            }
+        }
+        
+    }
+
+    /**
      * Find out the most general type of the {@link Map} values.
-     * @param map the container of objects. This method will iterate these objects and find out general types of keys and values of the {@link Map}.
+     * @param map the objects container. This method will iterate these objects and find out general types of keys and values of the {@link Map}.
      * @param containerType This object will be completed by found general types, se the {@link ContainerType#getContainerTypes()} method.
      * @param depth Depth of plunge this {@link ContainerType}, beginning from 1
      * If the inner items are generic, return find out their {@link ContainerType}s recursively, up to defined depth.
      */
     private void findGeneralItemsTypeOfMap(Map<?, ?> map, ContainerType containerType, int depth) {
-        ContainerType commonKeyContainerType = null;
-        ContainerType commonValueContainerType = null;
-        boolean allKeysHasTheSameType = true;
-        boolean allValuesHasTheSameType = true;
+        ContainerType commonKeyContainerType = new ContainerType();
+        ContainerType commonValueContainerType = new ContainerType();
         for (Entry<?, ?> entry : map.entrySet()) {
             Object keyObject = entry.getKey();
             Object valueObject = entry.getValue();
             
             ContainerType keyContainerType = new ContainerType();
             setContainerTypes(keyObject, keyContainerType, depth + 1);
+            mergeToCommonContainer(keyContainerType, commonKeyContainerType);
             
             ContainerType valueContainerType = new ContainerType();
             setContainerTypes(valueObject, valueContainerType, depth + 1);
-            
-            if (keyContainerType.getClassName() == null) {
-                allKeysHasTheSameType = false;
-            }
-            if (valueContainerType.getClassName() == null) {
-                allValuesHasTheSameType = false;
-            }
-            if (!allKeysHasTheSameType && !allValuesHasTheSameType) {
-                return;
-            }
-            
-            if (commonKeyContainerType == null) {
-                commonKeyContainerType = keyContainerType;
-            } else {
-                if (!commonKeyContainerType.equals(keyContainerType)) {
-                    allKeysHasTheSameType = false;
-                }
-            }
-            if (commonValueContainerType == null) {
-                commonValueContainerType = valueContainerType;
-            } else {
-                if (!commonValueContainerType.equals(valueContainerType)) {
-                    allValuesHasTheSameType = false;
-                }
-            }
-            if (!allKeysHasTheSameType && !allValuesHasTheSameType) {
-                return;
-            }
+            mergeToCommonContainer(valueContainerType, commonValueContainerType);
         }
-        containerType.getContainerTypes().add(commonKeyContainerType);
-        containerType.getContainerTypes().add(commonValueContainerType);
+        if (commonKeyContainerType.getObjectClass() != null || commonValueContainerType.getObjectClass() != null) {
+            containerType.getContainerTypes().add(commonKeyContainerType);
+            containerType.getContainerTypes().add(commonValueContainerType);
+        }
     }
 
     /**
+     * @deprecated
      * Generate a generic signature of a value, for example {@code <java.lang.String,java.lang.String>}.
      * @param iterable object instance as a source of the signature
      * @return for example {@code <java.lang.String>}.
@@ -303,6 +290,7 @@ public class IdentifierService {
     }
 
     /**
+     * @deprecated
      * Find out a class name from the identifier.
      * @param identifier generated by the {@link #generateIdentifier(Object)} method.
      * @return {@link Class} name. For example {@link java.util.TreeMap}.Entry will be returned from the
@@ -319,6 +307,7 @@ public class IdentifierService {
     }
 
     /**
+     * @deprecated
      * Find out key class from an identifier. For example, if the identifier contains
      * <pre>{@code java.util.TreeMap$Entry<java.lang.Integer,java.lang.String>@370b5}</pre> String,
      * then {@link Integer#getClass()} will be returned.
@@ -339,6 +328,7 @@ public class IdentifierService {
     }
 
     /**
+     * @deprecated
      * Find out value class from an identifier. For example, if the identifier contains
      * <pre>{@code java.util.TreeMap$Entry<java.lang.Integer,java.lang.String>@370b5}</pre>,
      * then {@link String#getClass()} will be returned.
@@ -363,6 +353,7 @@ public class IdentifierService {
     }
 
     /**
+     * @deprecated
      * Find out {@link Type}s of generic object form the method argument. This method is recursive.
      * @param identifier object identifier, for example {@code "com.apache.a4javadoc.javaagent.mapper.WrapperClass@70fa8cbc"}
      * without generic types.<br>
@@ -396,6 +387,7 @@ public class IdentifierService {
     }
 
     /**
+     * @deprecated
      * Find out {@link Class} of identifier.
      * @param identifier object identifier 
      * @return for example {@link java.util.TreeMap} from the identifier
@@ -410,6 +402,7 @@ public class IdentifierService {
     }
 
     /**
+     * @deprecated
      * Parse an argument and create the {@link Identifier} of some instance of object.
      * @param identifierString see the {@link Identifier#getSource()} field
      * @return {@link Identifier} - an object representation of the argument
@@ -425,13 +418,14 @@ public class IdentifierService {
     }
 
     /**
+     * @deprecated
      * Parse an enclosing {@link ContainerType}.
      * @param identifierString the data source
      * @return main enclosing {@link ContainerType} from the argument
      */
     private ContainerType parseContainerType(String identifierString) {
         ContainerType containerType = new ContainerType();
-        containerType.setClassName(findClassName(identifierString));
+//        containerType.setClassName(findClassName(identifierString));
         List<ContainerType> containerTypes = new ArrayList<>();
         containerType.setContainerTypes(containerTypes);
         
