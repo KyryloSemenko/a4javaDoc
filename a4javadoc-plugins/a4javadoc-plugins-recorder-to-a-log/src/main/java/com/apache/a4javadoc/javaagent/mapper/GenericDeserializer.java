@@ -1,8 +1,12 @@
 package com.apache.a4javadoc.javaagent.mapper;
 
 import java.io.IOException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.HashMap;
 import java.util.Map;
+
+import org.apache.commons.lang3.NotImplementedException;
 
 import com.apache.a4javadoc.exception.AppRuntimeException;
 import com.fasterxml.jackson.core.JsonParser;
@@ -18,6 +22,7 @@ import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 @SuppressWarnings("serial")
 public class GenericDeserializer extends StdDeserializer<Object> {
     
+    private static final String METHOD_NAME_VALUE_OF = "valueOf";
     /**
      * Values of this map contains already deserialized objects. The keys of the map contains generic identifiers,
      * see the {@link IdentifierService#generateIdentifier(Object)} method.
@@ -71,52 +76,84 @@ public class GenericDeserializer extends StdDeserializer<Object> {
      * @return instantiated object of the {@link Identifier#getContainerType()}.{@link ContainerType#getObjectClass()} type.
      */
     private Object deserializeObject(JsonNode jsonNode, Identifier identifier, Object parentInstance) {
-        if (jsonNode.isNull()) {
-            return null;
+        try {
+                if (jsonNode.isNull()) {
+                    return null;
+                }
+                if (identifier == null) {
+                    identifier = IdentifierService.getInstance().generateIdentifier(jsonNode, parentInstance);
+                }
+                final Class<?> objectClass = identifier.getContainerType().getObjectClass();
+
+                if (String.class == objectClass) {
+                    return jsonNode.asText();
+                }
+                if (contanisValueOfMethod(objectClass)) {
+                    Method valueOfMethod = objectClass.getDeclaredMethod(METHOD_NAME_VALUE_OF, String.class);
+                    return valueOfMethod.invoke(null, jsonNode.asText());
+                }
+                if (Iterable.class.isAssignableFrom(objectClass)) {
+                    throw new NotImplementedException("todo");
+                }
+                return null;
+        //        try {
+        //            Object instance = null;
+        //            Class<?> clazz = null;
+        //            String identifier = defaultIdentifier;
+        //            if (currentNode.has(GenericSerializer.GENERIC_KEY_ID)) {
+        //                identifier = currentNode.get(GenericSerializer.GENERIC_KEY_ID).asText();
+        //                if (deserializedObjects.containsKey(identifier)) {
+        //                    return deserializedObjects.get(identifier);
+        //                }
+        //                String className = IdentifierService.getInstance().findClassName(identifier);
+        //                clazz = Class.forName(className);
+        //                currentNode = currentNode.get(GenericSerializer.GENERIC_VALUE);
+        //            } else {
+        ////                if (containerTypes != null && !containerTypes.isEmpty()) {
+        ////                    // generic or array
+        ////                    for (int i = 0; i < currentNode.size(); i++) {
+        ////                        
+        ////                    }
+        ////                } else {
+        //                    clazz = defaultType;
+        ////                }
+        //            }
+        //            Object result = processPrimitiveOrWrapperOrString(currentNode, clazz);
+        //            if (result != null) {
+        //                return result;
+        //            }
+        //            instance = instantiate(clazz, containerTypes, currentNode, parentInstance, fieldName, identifier);
+        //            if (identifier != null) {
+        //                deserializedObjects.put(identifier, instance);
+        //            }
+        //            
+        //            deserializeSubFields(currentNode, instance, null, identifier);
+        //            return instance;
+        //        } catch (Exception e) {
+        //            throw new AppRuntimeException(e);
+        //        }
+        } catch (Exception e) {
+            throw new AppRuntimeException(e);
         }
-        if (identifier == null) {
-            identifier = IdentifierService.getInstance().generateIdentifier(jsonNode, parentInstance);
+    }
+
+    /**
+     * If the {@link Class#getDeclaredMethods()} contains the {@link #METHOD_NAME_VALUE_OF} {@link Method},
+     * this {@link Method} can be used for instantiation of an object of this type. Mostly for the primitive wrappers.
+     * @param objectClass methods source
+     * @return 'true' if the argument contains the static {@link Method} with the valueOf name and the one parameter of the {@link String} type
+     */
+    private boolean contanisValueOfMethod(Class<?> objectClass) {
+        for (Method method : objectClass.getDeclaredMethods()) {
+            if (Modifier.isStatic(method.getModifiers())
+                    && method.getReturnType() == objectClass
+                    && method.getParameterTypes().length == 1
+                    && method.getParameterTypes()[0] == String.class
+                    && method.getName().equals(METHOD_NAME_VALUE_OF)) {
+                return true;
+            }
         }
-        if (Iterable.class.isAssignableFrom(identifier.getContainerType().getObjectClass())) {
-            
-        }
-        return null;
-//        try {
-//            Object instance = null;
-//            Class<?> clazz = null;
-//            String identifier = defaultIdentifier;
-//            if (currentNode.has(GenericSerializer.GENERIC_KEY_ID)) {
-//                identifier = currentNode.get(GenericSerializer.GENERIC_KEY_ID).asText();
-//                if (deserializedObjects.containsKey(identifier)) {
-//                    return deserializedObjects.get(identifier);
-//                }
-//                String className = IdentifierService.getInstance().findClassName(identifier);
-//                clazz = Class.forName(className);
-//                currentNode = currentNode.get(GenericSerializer.GENERIC_VALUE);
-//            } else {
-////                if (containerTypes != null && !containerTypes.isEmpty()) {
-////                    // generic or array
-////                    for (int i = 0; i < currentNode.size(); i++) {
-////                        
-////                    }
-////                } else {
-//                    clazz = defaultType;
-////                }
-//            }
-//            Object result = processPrimitiveOrWrapperOrString(currentNode, clazz);
-//            if (result != null) {
-//                return result;
-//            }
-//            instance = instantiate(clazz, containerTypes, currentNode, parentInstance, fieldName, identifier);
-//            if (identifier != null) {
-//                deserializedObjects.put(identifier, instance);
-//            }
-//            
-//            deserializeSubFields(currentNode, instance, null, identifier);
-//            return instance;
-//        } catch (Exception e) {
-//            throw new AppRuntimeException(e);
-//        }
+        return false;
     }
 
 }

@@ -258,7 +258,7 @@ public class ObjectMapperA4jTest {
         }
     }
     
-    /** Test of serialization and deserialization of an multidimensional array */
+    /** Test of serialization and deserialization of the multidimensional array */
     @Test
     public void TestMultiDimensionalArray() {
         ObjectMapperA4j objectMapperA4j = ObjectMapperA4j.getInstance();

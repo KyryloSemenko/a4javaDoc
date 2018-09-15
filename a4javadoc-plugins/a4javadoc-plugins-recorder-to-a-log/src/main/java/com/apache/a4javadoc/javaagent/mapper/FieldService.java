@@ -62,6 +62,7 @@ public class FieldService {
     }
 
     /**
+     * @deprecated
      * Collect types of the identifier or fieldObject or field from arguments.<br>
      * If the identifier argument is not null, process it.<br>
      * Else if the fieldObject argument is not null, process it.<br>

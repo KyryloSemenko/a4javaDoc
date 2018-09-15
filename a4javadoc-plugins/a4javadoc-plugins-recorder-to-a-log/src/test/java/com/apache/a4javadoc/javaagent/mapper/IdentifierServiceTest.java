@@ -4,6 +4,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -14,12 +15,35 @@ import java.util.Map;
 import org.junit.Test;
 
 /** 
+ * Tests of the {@link IdentifierService#createIdentifier(Object)} method.
  * @author Kyrylo Semenko
  */
 public class IdentifierServiceTest {
     
     /**
-     * Test of the {@link com.apache.a4javadoc.javaagent.mapper.IdentifierService#createIdentifier(Object)} method.
+     * Test of an {@link Array}
+     */
+    @Test
+    public void testCreateIdentifierOfArray() {
+        ConfigService.getInstance().setMaxDepth(3);
+        Object[] array = new Object[]{"a", "b"};
+        Identifier identifier = IdentifierService.getInstance().createIdentifier(array);
+        
+        assertNotNull(identifier.getContainerType());
+        // List 1
+        assertEquals("[Ljava.lang.Object;",
+                identifier.getContainerType().getObjectClass().getName());
+        assertEquals(1,
+                identifier.getContainerType().getContainerTypes().size());
+        // List 2
+        assertEquals(String.class.getName(),
+                identifier.getContainerType().getContainerTypes().get(0).getObjectClass().getName());
+        assertEquals(0,
+                identifier.getContainerType().getContainerTypes().get(0).getContainerTypes().size());
+    }
+    
+    /**
+     * Test of a {@link List} of {@link List}s.
      */
     @Test
     public void testCreateIdentifierListOfLists() {
@@ -32,18 +56,26 @@ public class IdentifierServiceTest {
 
         assertNotNull(identifier.getContainerType());
         // List 1
-        assertEquals(ArrayList.class.getName(), identifier.getContainerType().getObjectClass().getName());
-        assertEquals(1, identifier.getContainerType().getContainerTypes().size());
+        assertEquals(ArrayList.class.getName(),
+                identifier.getContainerType().getObjectClass().getName());
+        assertEquals(1,
+                identifier.getContainerType().getContainerTypes().size());
         // List 2
-        assertEquals("java.util.Arrays$ArrayList", identifier.getContainerType().getContainerTypes().get(0).getObjectClass().getName());
-        assertEquals(1,                            identifier.getContainerType().getContainerTypes().get(0).getContainerTypes().size());
+        ContainerType firstInnerContainerType = identifier.getContainerType().getContainerTypes().get(0);
+        
+        assertEquals("java.util.Arrays$ArrayList",
+                firstInnerContainerType.getObjectClass().getName());
+        assertEquals(1,
+                firstInnerContainerType.getContainerTypes().size());
         // String
-        assertEquals(String.class.getName(), identifier.getContainerType().getContainerTypes().get(0).getContainerTypes().get(0).getObjectClass().getName());
-        assertEquals(0,                      identifier.getContainerType().getContainerTypes().get(0).getContainerTypes().get(0).getContainerTypes().size());
+        assertEquals(String.class.getName(),
+                firstInnerContainerType.getContainerTypes().get(0).getObjectClass().getName());
+        assertEquals(0,
+                firstInnerContainerType.getContainerTypes().get(0).getContainerTypes().size());
     }
     
     /**
-     * Test of the {@link com.apache.a4javadoc.javaagent.mapper.IdentifierService#createIdentifier(Object)} method.
+     * Test of the {@link IdentifierService#createIdentifier(Object)} method.
      */
     @Test
     public void testCreateIdentifierListOfListsWithDifferentObjectTypes() {
@@ -56,17 +88,23 @@ public class IdentifierServiceTest {
 
         assertNotNull(identifier.getContainerType());
         // depth 1
-        assertEquals(ArrayList.class.getName(), identifier.getContainerType().getObjectClass().getName());
-        assertEquals(1, identifier.getContainerType().getContainerTypes().size());
+        assertEquals(ArrayList.class.getName(),
+                identifier.getContainerType().getObjectClass().getName());
+        assertEquals(1,
+                identifier.getContainerType().getContainerTypes().size());
         // depth 2
-        assertEquals("java.util.Arrays$ArrayList", identifier.getContainerType().getContainerTypes().get(0).getObjectClass().getName());
-        assertEquals(1,                            identifier.getContainerType().getContainerTypes().get(0).getContainerTypes().size());
+        ContainerType firstInnerContainerType = identifier.getContainerType().getContainerTypes().get(0);
+        assertEquals("java.util.Arrays$ArrayList",
+                firstInnerContainerType.getObjectClass().getName());
+        assertEquals(1,
+                firstInnerContainerType.getContainerTypes().size());
         // depth 3
-        assertEquals(Object.class.getName(),       identifier.getContainerType().getContainerTypes().get(0).getContainerTypes().get(0).getObjectClass().getName());
+        assertEquals(Object.class.getName(),
+                firstInnerContainerType.getContainerTypes().get(0).getObjectClass().getName());
     }
     
     /**
-     * Test of the {@link com.apache.a4javadoc.javaagent.mapper.IdentifierService#createIdentifier(Object)} method.
+     * Test of the {@link IdentifierService#createIdentifier(Object)} method.
      * The third inner list should not be included to {@link Identifier}
      */
     @Test
@@ -85,21 +123,28 @@ public class IdentifierServiceTest {
         
         // List depth 1
         assertNotNull(identifier.getContainerType());
-        assertEquals(LinkedList.class.getName(),   identifier.getContainerType().getObjectClass().getName());
-        assertEquals(1,                            identifier.getContainerType().getContainerTypes().size());
+        assertEquals(LinkedList.class.getName(),
+                identifier.getContainerType().getObjectClass().getName());
+        assertEquals(1,
+                identifier.getContainerType().getContainerTypes().size());
         
         // List depth 2
-        assertEquals(ArrayList.class.getName(),    identifier.getContainerType().getContainerTypes().get(0).getObjectClass().getName());
-        assertEquals(1,                            identifier.getContainerType().getContainerTypes().get(0).getContainerTypes().size());
+        ContainerType firstInnerContainerType = identifier.getContainerType().getContainerTypes().get(0);
+        assertEquals(ArrayList.class.getName(),
+                firstInnerContainerType.getObjectClass().getName());
+        assertEquals(1,
+                firstInnerContainerType.getContainerTypes().size());
 
         // List depth 2
-        assertEquals("java.util.Arrays$ArrayList", identifier.getContainerType().getContainerTypes().get(0).getContainerTypes().get(0).getObjectClass().getName());
+        assertEquals("java.util.Arrays$ArrayList",
+                firstInnerContainerType.getContainerTypes().get(0).getObjectClass().getName());
         // Only three levels allowed
-        assertTrue(                                identifier.getContainerType().getContainerTypes().get(0).getContainerTypes().get(0).getContainerTypes().isEmpty());
+        assertTrue(
+                firstInnerContainerType.getContainerTypes().get(0).getContainerTypes().isEmpty());
     }
     
     /**
-     * Test of the {@link com.apache.a4javadoc.javaagent.mapper.IdentifierService#createIdentifier(Object)} method.
+     * Test of the {@link IdentifierService#createIdentifier(Object)} method.
      * The third inner list should be included to {@link Identifier}
      * <pre>
 Identifier{
@@ -161,28 +206,42 @@ Identifier{
         
         // (0) outerMap depth 1
         assertNotNull(identifier.getContainerType());
-        assertEquals(outerMap.getClass().getName(),         identifier.getContainerType().getObjectClass().getName());
-        assertEquals(2,                                     identifier.getContainerType().getContainerTypes().size());
+        assertEquals(outerMap.getClass().getName(),
+                identifier.getContainerType().getObjectClass().getName());
+        assertEquals(2,
+                identifier.getContainerType().getContainerTypes().size());
         
         // (0.0) outerMap key - middleList, depth 2
-        assertEquals(middleList.getClass().getName(),       identifier.getContainerType().getContainerTypes().get(0).getObjectClass().getName());
-        assertEquals(1,                                     identifier.getContainerType().getContainerTypes().get(0).getContainerTypes().size());
+        ContainerType firstInnerContainerType = identifier.getContainerType().getContainerTypes().get(0);
+        assertEquals(middleList.getClass().getName(),
+                firstInnerContainerType.getObjectClass().getName());
+        assertEquals(1,
+                firstInnerContainerType.getContainerTypes().size());
         
         // (0.0.0) outerMap key - middleList value, depth 3
-        assertEquals(String.class.getName(),                identifier.getContainerType().getContainerTypes().get(0).getContainerTypes().get(0).getObjectClass().getName());
-        assertEquals(0,                                     identifier.getContainerType().getContainerTypes().get(0).getContainerTypes().get(0).getContainerTypes().size());
+        assertEquals(String.class.getName(),
+                firstInnerContainerType.getContainerTypes().get(0).getObjectClass().getName());
+        assertEquals(0,
+                firstInnerContainerType.getContainerTypes().get(0).getContainerTypes().size());
         
         // (0.1) outerMap value - middle map, depth 2
-        assertEquals(middleMap.getClass().getName(),        identifier.getContainerType().getContainerTypes().get(1).getObjectClass().getName());
-        assertEquals(2,                                     identifier.getContainerType().getContainerTypes().get(1).getContainerTypes().size());
+        ContainerType secondInnerContainerType = identifier.getContainerType().getContainerTypes().get(1);
+        assertEquals(middleMap.getClass().getName(),
+                secondInnerContainerType.getObjectClass().getName());
+        assertEquals(2,
+                secondInnerContainerType.getContainerTypes().size());
         
         // (0.1.0) outerMap value - middleMap key - String depth 3
-        assertEquals(String.class.getName(),                identifier.getContainerType().getContainerTypes().get(1).getContainerTypes().get(0).getObjectClass().getName());
-        assertEquals(0,                                     identifier.getContainerType().getContainerTypes().get(1).getContainerTypes().get(0).getContainerTypes().size());
+        assertEquals(String.class.getName(),
+                secondInnerContainerType.getContainerTypes().get(0).getObjectClass().getName());
+        assertEquals(0,
+                secondInnerContainerType.getContainerTypes().get(0).getContainerTypes().size());
         
         // (0.1.1) outerMap value - middleMap value - innerList, depth 3
-        assertEquals(innerList.getClass().getName(),        identifier.getContainerType().getContainerTypes().get(1).getContainerTypes().get(1).getObjectClass().getName());
-        assertEquals(0,                                     identifier.getContainerType().getContainerTypes().get(1).getContainerTypes().get(1).getContainerTypes().size());
+        assertEquals(innerList.getClass().getName(),
+                secondInnerContainerType.getContainerTypes().get(1).getObjectClass().getName());
+        assertEquals(0,
+                secondInnerContainerType.getContainerTypes().get(1).getContainerTypes().size());
     }
     
 }

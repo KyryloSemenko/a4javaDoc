@@ -13,9 +13,6 @@ import org.apache.commons.lang3.builder.ToStringStyle;
  */
 public class Identifier {
     
-    /** The hash code, for example <b>fe2</b> in the {@code "java.util.Arrays$ArrayList<java.lang.String>@fe2"} identifier. */
-    private String hash;
-    
     /**
      * Cannot be 'null', can be empty.<br>
      * The {@link Identifier} includes only one {@link ContainerType}.
@@ -38,16 +35,6 @@ public class Identifier {
     @Override
     public String toString() {
         return ToStringBuilder.reflectionToString(this, ToStringStyle.SHORT_PREFIX_STYLE);
-    }
-
-    /** @return The {@link Identifier#hash} field */
-    public String getHash() {
-        return hash;
-    }
-
-    /** @param hash see the {@link Identifier#hash} field */
-    public void setHash(String hash) {
-        this.hash = hash;
     }
 
     /** @return The {@link Identifier#containerType} field */
