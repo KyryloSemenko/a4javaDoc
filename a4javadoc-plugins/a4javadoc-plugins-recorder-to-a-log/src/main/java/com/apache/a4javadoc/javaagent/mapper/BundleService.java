@@ -27,38 +27,71 @@ public class BundleService {
         return instance;
     }
 
-    /** TODO */
+    /**
+     * <p>
+     * If the instance from the first argument is {@link Array}, call the
+     * {@link #addArrayItemsToList(Object, List)} method.
+     * 
+     * <p>
+     * If the instance from the first argument is {@link Iterable}, call the
+     * {@link #addIterableItemsToList(Iterable, List)} method.
+     * <p>
+     * 
+     * If the instance from the first argument is {@link Map}, call the
+     * {@link #addMapItemsToList(Map, List)} method.
+     * 
+     * @param instance the data source
+     * @param objectList the list for completion of items
+     */
     public void addItemsToList(Object instance, List<Object> objectList) {
         if (instance.getClass().isArray()) {
             addArrayItemsToList(instance, objectList);
         } else if (Iterable.class.isAssignableFrom(instance.getClass())) {
-            addIterableItemsToList(instance, objectList);
+            addIterableItemsToList((Iterable<?>) instance, objectList);
         } else if (Map.class.isAssignableFrom(instance.getClass())) {
-            addMapItemsToList(instance, objectList);
+            addMapItemsToList((Map<?,?>) instance, objectList);
         }
     }
 
-    // TODO Auto-generated method stub
-    public void addMapItemsToList(Object instance, List<Object> objectList) {
-        for (Object entry : ((Map<?,?>) instance).entrySet()) {
+    /**
+     * Call the {@link Map#entrySet()} method
+     * and add items to objectList.
+     * 
+     * @param map the source of items
+     * @param objectList the list for completion of items
+     */
+    public void addMapItemsToList(Map<?,?> map, List<Object> objectList) {
+        for (Object entry : map.entrySet()) {
             objectList.add(entry);
         }
     }
 
-    /** TODO */
-    public void addIterableItemsToList(Object instance, List<Object> objectList) {
-        Iterator<?> iterator = ((Iterable<?>) instance).iterator();
+    /**
+     * Call the {@link Iterable#iterator()} method
+     * and add items to objectList.
+     * 
+     * @param iterable the source of items
+     * @param objectList the list for completion of items
+     */
+    public void addIterableItemsToList(Iterable<?> iterable, List<Object> objectList) {
+        Iterator<?> iterator = iterable.iterator();
         while(iterator.hasNext()) {
             Object nextObject = iterator.next();
             objectList.add(nextObject);
         }
     }
 
-    /** TODO */
-    public void addArrayItemsToList(Object fieldObject, List<Object> objectList) {
-        int length = Array.getLength(fieldObject);
+    /**
+     * Iterate items of the {@link Array} from the first argument
+     * and add items to the list from the second argument.
+     * 
+     * @param arrayObject the source of items
+     * @param objectList the list for completion of items
+     */
+    public void addArrayItemsToList(Object arrayObject, List<Object> objectList) {
+        int length = Array.getLength(arrayObject);
         for (int i = 0; i < length; i++) {
-            Object arrayElement = Array.get(fieldObject, i);
+            Object arrayElement = Array.get(arrayObject, i);
             objectList.add(arrayElement);
         }
     }

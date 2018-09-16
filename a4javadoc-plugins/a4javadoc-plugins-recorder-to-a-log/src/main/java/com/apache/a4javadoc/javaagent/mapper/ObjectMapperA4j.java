@@ -73,7 +73,7 @@ public class ObjectMapperA4j {
      */
     public <T> T readValue(String content, Class<T> valueType) {
         try {
-            return (T) objectMapper.readValue(content, valueType);
+            return objectMapper.readValue(content, valueType);
         } catch (Exception e) {
             throw new AppRuntimeException(e);
         }

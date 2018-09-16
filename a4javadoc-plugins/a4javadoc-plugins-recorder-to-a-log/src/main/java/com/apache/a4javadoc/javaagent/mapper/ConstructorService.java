@@ -30,27 +30,28 @@ public class ConstructorService {
      * Find out {@link Constructor} for invocation.
      * @param field if clazz parameter does not contains suited constructor, the field is the source of constructors
      * @param clazz if not null, it is the source of constructors
-     * @param classForReturning what type the constructor should return
+     * @param classForReturning what type the constructor should returns
      * @param parameters parameters for invocation of the constructor
      * @return the {@link Constructor} that is suitable as defined in {@link #isConstructorSuit(Class, List, Constructor)}.
      */
-    public Constructor<?> findConstructor(Field field, Class<?> clazz, Class<?> classForReturning, List<Object> parameters) {
+    @SuppressWarnings("unchecked")
+    public <T> T findConstructor(Field field, Class<T> clazz, Class<?> classForReturning, List<Object> parameters) {
         if (clazz != null) {
             for (Constructor<?> constructor : clazz.getDeclaredConstructors()) {
                 if (isConstructorSuit(classForReturning, parameters, constructor)) {
-                    return constructor;
+                    return (T) constructor;
                 }
             }
         }
         if (field != null) {
             for (Constructor<?> constructor : field.getType().getDeclaredConstructors()) {
                 if (isConstructorSuit(classForReturning, parameters, constructor)) {
-                    return constructor;
+                    return (T) constructor;
                 }
             }
         }
         if (clazz != null) {
-            return findConstructor(field, clazz.getEnclosingClass(), classForReturning, parameters);
+            return (T) findConstructor(field, clazz.getEnclosingClass(), classForReturning, parameters);
         }
         return null;
     }

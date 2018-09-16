@@ -1,6 +1,7 @@
 package com.apache.a4javadoc.javaagent.mapper;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 
 import com.apache.a4javadoc.exception.AppRuntimeException;
@@ -10,6 +11,23 @@ import com.apache.a4javadoc.exception.AppRuntimeException;
  * @author Kyrylo Semenko
  */
 public class ClassService {
+    
+    /**
+     * Contains all wrappers of primitive types,
+     * for example {@link Boolean} {@code Class} for {@code boolean} primitive.
+     */
+    private static final HashSet<Class<?>> WRAPPER_SET = new HashSet<>();
+    static {
+        WRAPPER_SET.add(Boolean.class);
+        WRAPPER_SET.add(Byte.class);
+        WRAPPER_SET.add(Character.class);
+        WRAPPER_SET.add(Short.class);
+        WRAPPER_SET.add(Integer.class);
+        WRAPPER_SET.add(Long.class);
+        WRAPPER_SET.add(Double.class);
+        WRAPPER_SET.add(Float.class);
+        WRAPPER_SET.add(Void.class);
+    }
     
     private static ClassService instance;
     
@@ -114,19 +132,24 @@ public class ClassService {
     }
 
     /**
-     * Compares two classes after application a {@link #toWrapper(Class)} method.
+     * Compare two classes.
+     * 
      * @param left the first class
      * @param right the second class
-     * @return 'true' if the first and the second wrapped classes the same. For example <b>int</b> is the same as {@link Integer}
+     * @return 'true' if the first and the second classes are the same
+     * or contains a primitive and wrapper of similar types.
+     * For example the <b>int</b> is similar as the {@link Integer}
      */
-    public boolean isClassesTheSame(Class<?> left, Class<?> right) {
-        return toWrapper(left) == toWrapper(right);
+    public boolean classesAreTheSame(Class<?> left, Class<?> right) {
+        return left == right || toWrapper(left) == toWrapper(right);
     }
     
     /**
      * If the type is primitive, wrap it to the wrapper.
-     * @param type primitive or wrapper
-     * @return wrapper. For example return {@link Integer} for <b>int</b> type.
+     * @param type any {@link Class}
+     * @return wrapper of the primitive.
+     * For example return {@link Integer} for <b>int</b> type.
+     * If the argument is not primitive, return it as is.
      */
     private Class<?> toWrapper(Class<?> type) {
         if (boolean.class == type) {
@@ -158,5 +181,18 @@ public class ClassService {
         }
         
         return type;
+    }
+
+    /**
+     * Find out if the method argument has primitive, wrapper or String type.
+     * 
+     * @param object
+     * @return 'true' if the object is {@link Class#isPrimitive()}
+     * or is one of the {@link #WRAPPER_SET} items
+     * or is a {@link String}.
+     */
+    public boolean isPrimitiveOrWrapperOrString(Object object) {
+        return object.getClass().isPrimitive() || WRAPPER_SET.contains(object.getClass()) ||
+                object.getClass() == String.class;
     }
 }

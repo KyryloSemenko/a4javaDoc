@@ -3,10 +3,6 @@ package com.apache.a4javadoc.javaagent.mapper;
 import java.lang.reflect.Array;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
 
 import com.apache.a4javadoc.exception.AppRuntimeException;
 
@@ -32,22 +28,6 @@ public class TypeService {
         return instance;
     }
 
-//    /** TODO */
-//    private Class<?> findCommonClass(Class<?> commonClass, Class<?> clazz) {
-//        if (commonClass == null) {
-//            commonClass = clazz;
-//        } else {
-//            if (!commonClass.isAssignableFrom(clazz)) {
-//                commonClass = clazz;
-//            }
-//        }
-//        if (commonClass == null) {
-//            throw new AppRuntimeException("commonClass cannot be null");
-//        }
-//        return commonClass;
-//    }
-
-
     /**
      * Find out if the argument is {@link Array} or {@link ParameterizedType} or not
      * @param typeForReturning some type
@@ -57,13 +37,24 @@ public class TypeService {
         return typeForReturning.getClass().isArray() || ParameterizedType.class.isAssignableFrom(typeForReturning.getClass());
     }
 
+    /**
+     * <p>
+     * Decide if the {@link Type} from the second argument
+     * can be assigned to {@link Class} from the first argument.
+     * 
+     * @param clazz more common type
+     * @param type more specific type
+     * @return 'true' if {@link Class#isAssignableFrom(Class)} is 'true'.
+     * If the second argument is {@link ParameterizedType}, obtain its
+     * {@link ParameterizedType#getRawType()} and use it for the decision.
+     */
     public boolean isClassAssignableFromType(Class<?> clazz, Type type) {
         if (type instanceof ParameterizedType) {
             ParameterizedType parameterizedType = (ParameterizedType) type;
             Type rawType = parameterizedType.getRawType();
             if (rawType instanceof Class<?>) {
                 Class<?> rawTypeClass = (Class<?>) rawType;
-                return rawTypeClass.isAssignableFrom(clazz);
+                return clazz.isAssignableFrom(rawTypeClass);
             }
         }
         if (type instanceof Class) {

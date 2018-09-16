@@ -23,9 +23,10 @@ import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 public class GenericDeserializer extends StdDeserializer<Object> {
     
     private static final String METHOD_NAME_VALUE_OF = "valueOf";
+    
     /**
      * Values of this map contains already deserialized objects. The keys of the map contains generic identifiers,
-     * see the {@link IdentifierService#generateIdentifier(Object)} method.
+     * see the {@link IdentifierService#generateIdentifier(JsonNode, Object)} method.
      */
     private transient Map<String, Object> deserializedObjects;
     

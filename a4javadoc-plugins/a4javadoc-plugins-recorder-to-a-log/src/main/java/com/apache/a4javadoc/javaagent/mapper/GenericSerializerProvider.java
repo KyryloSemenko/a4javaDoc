@@ -8,7 +8,14 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.ser.DefaultSerializerProvider;
 import com.fasterxml.jackson.databind.ser.SerializerFactory;
 
-/** 
+/**
+ * <p>
+ * Implementation of {@link DefaultSerializerProvider}.
+ * Contains serialization state, for example {@link #serializedObjects}
+ * or {@link #maxDepth}.
+ * <p>
+ * Instance of this object creates before serialization and disappears
+ * after serialization.
  * @author Kyrylo Semenko
  */
 @SuppressWarnings("serial")
@@ -18,16 +25,23 @@ public class GenericSerializerProvider extends DefaultSerializerProvider {
      * If this set contains some object, then the object will not been serialized again.<br>
      * Its unique identifier will be serialized instead.
      */
-    private Set<Object> serializedObjects;
+    private transient Set<Object> serializedObjects;
     
     /** How levels of object graph should be serialized */
     private int maxDepth;
     
+    /**
+     * Default constructor.
+     */
     public GenericSerializerProvider() {
         super();
         serializedObjects = new HashSet<>();
     }
     
+    /**
+     * Constructor with parameter.
+     * @param genericSerializerProvider
+     */
     public GenericSerializerProvider(GenericSerializerProvider genericSerializerProvider) {
         super(genericSerializerProvider);
         serializedObjects = new HashSet<>();

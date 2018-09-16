@@ -62,20 +62,15 @@ public class FieldService {
     }
 
     /**
-     * @deprecated
-     * Collect types of the identifier or fieldObject or field from arguments.<br>
-     * If the identifier argument is not null, process it.<br>
-     * Else if the fieldObject argument is not null, process it.<br>
-     * Else process field argument.<br>
+     * Collect types of the identifier or fieldObject or field from arguments.
+     * If the fieldObject argument is not null, process it.
+     * Else process field argument.
      * @param field the data source
      * @param fieldObject the data source
-     * @param identifier  the data source
-     * @return {@link Class}es of parameters for {@link ParameterizedType}s or a single {@link Class} for other data sources
+     * @return {@link Class}es of parameters for {@link ParameterizedType}s
+     * or a single {@link Class} for other data sources
      */
-    public List<Class<?>> getContainerTypes(Field field, Object fieldObject, String identifier) {
-        if (identifier != null) {
-            return IdentifierService.getInstance().findGenericTypes(identifier);
-        }
+    public List<Class<?>> getContainerTypes(Field field, Object fieldObject) {
         if (fieldObject != null) {
             // Arrays
             if (fieldObject.getClass().isArray()) {
