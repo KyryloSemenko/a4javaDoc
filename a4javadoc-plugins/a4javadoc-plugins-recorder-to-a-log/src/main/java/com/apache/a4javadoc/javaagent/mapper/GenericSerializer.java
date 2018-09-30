@@ -80,7 +80,8 @@ public class GenericSerializer extends StdSerializer<Object> {
      * of attaching an identifier of sourmceObject to JSON
      */
     private void serializeObject(Field field, Object sourceObject, JsonGenerator jsonGenerator,
-            GenericSerializerProvider genericSerializerProvider, int depth, Object rootObject, Boolean attachIdentifier) {
+            GenericSerializerProvider genericSerializerProvider, int depth, Object rootObject,
+            Boolean attachIdentifier) {
         try {
             if (processNull(field, sourceObject, jsonGenerator)) {
                 return;
@@ -92,7 +93,7 @@ public class GenericSerializer extends StdSerializer<Object> {
             }
             
             Identifier identifier = IdentifierService.getInstance().createIdentifier(sourceObject);
-            if (attachIdentifier != null) {
+            if (Boolean.TRUE.equals(attachIdentifier)) {
                 identifier.setRequiresToBeIncludedInJson(attachIdentifier);
             }
             
@@ -105,8 +106,8 @@ public class GenericSerializer extends StdSerializer<Object> {
                 return;
             }
       
-            if (processArrayOrCollection(field, sourceObject, jsonGenerator, genericSerializerProvider, depth, rootObject,
-                    identifier)) {
+            if (processArrayOrCollection(field, sourceObject, jsonGenerator, genericSerializerProvider, depth,
+                    rootObject, identifier)) {
                 return;
             }
             
@@ -182,12 +183,18 @@ public class GenericSerializer extends StdSerializer<Object> {
                 genericSerializerProvider.getSerializedObjects().add(sourceObject);
                 jsonGenerator.writeObjectFieldStart(GENERIC_VALUE);
             }
-            for (Field innerField : FieldService.getInstance().getFields(sourceObject)) {
-                Object value = getObject(innerField, sourceObject);
-                boolean appendIdentifier = value != null &&
-                        !ClassService.getInstance().classesAreTheSame(value.getClass(), innerField.getType());
-                serializeObject(innerField, value, jsonGenerator, genericSerializerProvider, depth + 1,
-                        rootObject, appendIdentifier);
+            if (identifier.getContainerType().getDisassembleMethod() != null) {
+                jsonGenerator.writeStartArray();
+                
+                jsonGenerator.writeEndArray();
+            } else {
+                for (Field innerField : FieldService.getInstance().getFields(sourceObject)) {
+                    Object value = getObject(innerField, sourceObject);
+                    boolean appendIdentifier = value != null &&
+                            !ClassService.getInstance().classesAreTheSame(value.getClass(), innerField.getType());
+                    serializeObject(innerField, value, jsonGenerator, genericSerializerProvider, depth + 1,
+                            rootObject, appendIdentifier);
+                }
             }
             
             // footer

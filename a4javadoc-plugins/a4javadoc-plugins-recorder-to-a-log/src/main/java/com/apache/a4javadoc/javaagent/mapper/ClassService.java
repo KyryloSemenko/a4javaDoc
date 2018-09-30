@@ -26,7 +26,6 @@ public class ClassService {
         WRAPPER_SET.add(Long.class);
         WRAPPER_SET.add(Double.class);
         WRAPPER_SET.add(Float.class);
-        WRAPPER_SET.add(Void.class);
     }
     
     private static ClassService instance;

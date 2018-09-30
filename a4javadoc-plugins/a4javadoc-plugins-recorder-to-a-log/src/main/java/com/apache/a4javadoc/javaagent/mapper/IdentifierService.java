@@ -4,19 +4,13 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
-import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Set;
-
-import org.apache.commons.lang3.NotImplementedException;
 
 import com.apache.a4javadoc.exception.AppRuntimeException;
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -40,10 +34,29 @@ import com.fasterxml.jackson.databind.JsonNode;
  */
 public class IdentifierService {
 
+    /**
+     * See the {@link ContainerType#setFilling(String)} field description.
+     */
+    private static final String FILLING_FIELD_NAME = "filling";
+
+    /**
+     * See the {@link ContainerType#setFactory(String)} field description.
+     */
+    private static final String FACTORY_FIELD_NAME = "factory";
+
+    /**
+     * See the {@link ContainerType#setContainerTypes(List)} field description.
+     */
     private static final String CONTAINER_TYPES_FIELD_NAME = "containerTypes";
 
+    /**
+     * See the {@link ContainerType#setObjectClass(Class)} field description.
+     */
     private static final String OBJECT_CLASS_FIELD_NAME = "objectClass";
 
+    /**
+     * See the {@link Identifier#setContainerType(ContainerType)} field description.
+     */
     private static final String CONTAINER_TYPE_FIELD_NAME = "containerType";
 
     private static IdentifierService instance;
@@ -141,15 +154,32 @@ public class IdentifierService {
     }
 
     /**
-     * Find out generic types of the value, for example
-     * {@code <java.lang.String,java.lang.String>}.
+     * Find out generic types of the value, for example if the value is a map
+     * with {@link String} keys and {@link Integer} values, this method will
+     * fill out the {@link ContainerType} by the two inner
+     * {@link ContainerType}s:
+     * <pre>
+     * "containerType": {
+     *     {
+     *         "objectClass": "java.util.LinkedHashMap",
+     *         "containerTypes": [{
+     *             "objectClass": "java.lang.String",
+     *             "containerTypes": []
+     *         },
+     *         {
+     *             "objectClass": "java.lang.Integer",
+     *             "containerTypes": []
+     *         }]
+     *     }
+     * }
+     * </pre>
      * 
      * @param value object instance as a source of the generic types. If the
      * value is 'null', it will be skipped.
      * @param containerType this object will be completed by generic types, see
      * {@link ContainerType#setContainerTypes(List)}.
-     * @param depth Plunging depth of this {@link ContainerType}, beginning from
-     * 1. Max depth defined in {@link ConfigService#getMaxDepth()}.
+     * @param depth a plunging depth of this {@link ContainerType}, beginning
+     * from 1. Max depth is defined in {@link ConfigService#getMaxDepth()}.
      */
     public void setContainerTypes(Object value, ContainerType containerType, int depth) {
         try {
@@ -173,69 +203,13 @@ public class IdentifierService {
                 return;
             }
             if (ParameterizedType.class.isAssignableFrom(clazz.getGenericSuperclass().getClass())) {
-                Type[] types = ((ParameterizedType) clazz.getGenericSuperclass()).getActualTypeArguments();
-                List<TypeVariable<?>> typeVariables = new ArrayList<>();
-                for (Type type : types) {
-                    if (type instanceof TypeVariable<?>) {
-                        @SuppressWarnings("unchecked")
-                        TypeVariable<Class<?>> typeVariable = (TypeVariable<Class<?>>) type;
-                        typeVariables.add(typeVariable);
-                    } else {
-                        throw new AppRuntimeException("Type should be TypeVariable. Type: " + type);
-                    }
-                }
-                if (types.length > 0) {
-                    List<Class<?>> generalItemTypes = findGeneralItemTypes(value, typeVariables, containerType, depth);
-    //                Method factoryMethod = MethodService.getInstance().findFactoryMethod(value, types);
-    //                if (factoryMethod != null) {
-    //                    Method iteratorMethod = MethodService.getInstance().findIteratorMethod(value);
-    //                    if (iteratorMethod != null) {
-    //                        Iterable<Class<?>> iterable = (Iterable<Class<?>>) iteratorMethod.invoke(value);
-    //                        findGeneralItemsTypeOfIterable(iterable, containerType, depth);
-    //                    } else {
-    //                        Method mapMethod = MethodService.getInstance().getMapMethod(value);
-    //                    }
-    //                    Method itemFactoryMethod = MethodService.getInstance().findItemFactoryMethod(value, types);
-    //                    if (itemFactoryMethod != null) {
-    //                        
-    //                        containerType.setFactoryMethod(factoryMethod);
-    //                        containerType.setItemFactoryMethod(itemFactoryMethod);
-    //                    }
-    //                }
-                    
-                    
-    //                Constructor constructor = ConstructorService.getInstance().findConstructor(value, types);
-    //                if (constructor != null) {
-    //                    Object copyOfValue = constructor.newInstance();
-    //                }
-                    // TODO Kyrylo Semenko - dohledat factory method a itemFactory
-                    // method.
-                }
+                List<TypeVariable<?>> typeVariables = TypeService.getInstance().collectTypeVariables(clazz);
+                MethodService.getInstance().fillGeneralItemsTypeOfParameterized(value, typeVariables, containerType);
+                return;
             }
         } catch (Exception e) {
             throw new AppRuntimeException(e);
         }
-    }
-
-    /**
-     * Find out iterator method of the value, iterate items and store
-     * theirs general boundary types in the {@link ContainerType}.
-     * 
-     * @param value the object that contains {@link Set} of items
-     * @param typeVariables contains boundaries of elements in a single item
-     * @param containerType container to story founded information
-     * @param depth the current plunge depth of this {@link ContainerType}
-     * @return 'null' if cannot find out an iterable method. 
-     * @throws Exception 
-     */
-    private List<Class<?>> findGeneralItemTypes(Object value, List<TypeVariable<?>> typeVariables, ContainerType containerType, int depth) throws Exception {
-        Method iterableMethod = MethodService.getInstance().findIterableOrMapMethod(value, typeVariables);
-        if (iterableMethod == null) {
-            return null;
-        }
-        Iterable<?> iterable = (Iterable<?>) iterableMethod.invoke(value);
-        findGeneralItemsTypeOfIterable(iterable, containerType, depth);
-        throw new NotImplementedException("not implemented yet");
     }
 
     /**
@@ -308,8 +282,7 @@ public class IdentifierService {
      */
     private void mergeToCommonContainer(ContainerType currentContainerType, ContainerType commonContainerType) {
         commonContainerType.setObjectClass(ClassService.getInstance()
-                .findCommonClassType(currentContainerType.getObjectClass(),
-                        commonContainerType.getObjectClass()));
+                .findCommonClassType(currentContainerType.getObjectClass(), commonContainerType.getObjectClass()));
         if (commonContainerType.getContainerTypes().isEmpty()) {
             commonContainerType.setContainerTypes(currentContainerType.getContainerTypes());
             return;
@@ -359,7 +332,7 @@ public class IdentifierService {
      * Create JSON from the {@link Identifier}. Create for example
      * 
      * <pre>
-     * {"hash":"66ccfbd8","containerType":{"objectClass":"com.apache.a4javadoc.javaagent.mapper.WrapperClass","containerTypes":[]}}
+     * {"containerType":{"objectClass":"com.apache.a4javadoc.javaagent.mapper.WrapperClass","containerTypes":[]}}
      * </pre>
      * 
      * @param identifier the JSON source
@@ -390,6 +363,12 @@ public class IdentifierService {
     private void processIdentifierContainerType(ContainerType containerType, JsonGenerator jsonGenerator)
             throws IOException {
         jsonGenerator.writeStringField(OBJECT_CLASS_FIELD_NAME, containerType.getObjectClass().getName());
+        if (containerType.getFactory() != null) {
+            jsonGenerator.writeStringField(FACTORY_FIELD_NAME, containerType.getFactory());
+        }
+        if (containerType.getFilling() != null) {
+            jsonGenerator.writeStringField(FILLING_FIELD_NAME, containerType.getFilling());
+        }
         jsonGenerator.writeArrayFieldStart(CONTAINER_TYPES_FIELD_NAME);
         for (ContainerType innerContainerType : containerType.getContainerTypes()) {
             jsonGenerator.writeStartObject();
@@ -468,6 +447,27 @@ public class IdentifierService {
             return identifier;
         } catch (Exception e) {
             throw new AppRuntimeException(e);
+        }
+    }
+
+    /**
+     * Recursive method.
+     * <p>
+     * Collect only those classes from containerType in argument that has no
+     * leafs. It means collect only {@link ContainerType#getObjectClass()} of
+     * {@link ContainerType} that has no inner
+     * {@link ContainerType#getContainerTypes()}.
+     * 
+     * @param containerType the data source
+     * @param classes the list for filling with return values
+     */
+    public void collectLeafTypes(ContainerType containerType, List<Class<?>> classes) {
+        if (containerType.getContainerTypes().isEmpty()) {
+            classes.add(containerType.getObjectClass());
+        } else {
+            for (ContainerType nextContainerType : containerType.getContainerTypes()) {
+                collectLeafTypes(nextContainerType, classes);
+            }
         }
     }
 
