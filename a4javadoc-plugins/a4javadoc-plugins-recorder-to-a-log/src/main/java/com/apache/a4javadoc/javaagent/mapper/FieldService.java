@@ -6,6 +6,7 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import com.apache.a4javadoc.exception.AppRuntimeException;
@@ -55,7 +56,7 @@ public class FieldService {
      * @param field a data source
      * @return 'false' if the field is synthetic or static or transient
      */
-    public boolean isValidField(Field field) {
+    private boolean isValidField(Field field) {
         return !field.isSynthetic()
                 && !Modifier.isStatic(field.getModifiers())
                 && !Modifier.isTransient(field.getModifiers());
@@ -70,11 +71,11 @@ public class FieldService {
      * @return {@link Class}es of parameters for {@link ParameterizedType}s
      * or a single {@link Class} for other data sources
      */
-    public List<Class<?>> getContainerTypes(Field field, Object fieldObject) {
+    public List<? extends Class<?>> getContainerTypes(Field field, Object fieldObject) {
         if (fieldObject != null) {
             // Arrays
             if (fieldObject.getClass().isArray()) {
-                return Arrays.asList(fieldObject.getClass().getComponentType());
+                return Collections.singletonList(fieldObject.getClass().getComponentType());
             }
             
             // Collections and maps
@@ -86,7 +87,7 @@ public class FieldService {
             for (Object object : objectList) {
                 result = ClassService.getInstance().findCommonClassType(object.getClass(), result);
             }
-            return Arrays.asList(result);
+            return Collections.singletonList(result);
         }
         if (field != null) {
             return findArrayOrParameterizedTypeClasses(field);

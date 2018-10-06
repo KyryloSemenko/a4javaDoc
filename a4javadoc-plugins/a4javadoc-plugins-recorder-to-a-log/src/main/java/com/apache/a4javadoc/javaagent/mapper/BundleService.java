@@ -153,7 +153,7 @@ public class BundleService {
                 if (i == result.length - 2) {
                     result[i + 1] = entry.getValue();
                 } else {
-                    Zde je chyba. Je potreba tuto metodu predelat na rekurzivni a zpracovat vsechny polozky, ne firstItem.
+                    // TODO Zde je chyba. Je potreba tuto metodu predelat na rekurzivni a zpracovat vsechny polozky, ne firstItem.
                     innerObject = getFirstItem(entry.getValue());
                 }
             }
