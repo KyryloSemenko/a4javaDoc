@@ -5,8 +5,6 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
 import com.apache.a4javadoc.exception.AppRuntimeException;
@@ -16,13 +14,13 @@ import com.apache.a4javadoc.exception.AppRuntimeException;
  * @author Kyrylo Semenko
  */
 public class FieldService {
-    
+
     private static FieldService instance;
-    
+
     private FieldService() {
         // empty
     }
-    
+
     /**
      * @return the {@link FieldService} singleton.
      */
@@ -58,8 +56,8 @@ public class FieldService {
      */
     private boolean isValidField(Field field) {
         return !field.isSynthetic()
-                && !Modifier.isStatic(field.getModifiers())
-                && !Modifier.isTransient(field.getModifiers());
+            && !Modifier.isStatic(field.getModifiers())
+            && !Modifier.isTransient(field.getModifiers());
     }
 
     /**
@@ -71,29 +69,31 @@ public class FieldService {
      * @return {@link Class}es of parameters for {@link ParameterizedType}s
      * or a single {@link Class} for other data sources
      */
-    public List<? extends Class<?>> getContainerTypes(Field field, Object fieldObject) {
+    public List<Class<?>> getContainerTypes(Field field, Object fieldObject) {
+        if (field == null && fieldObject == null) {
+            throw new AppRuntimeException("The both field and fieldObject are null");
+        }
+        List<Class<?>> result = new ArrayList<>();
         if (fieldObject != null) {
             // Arrays
             if (fieldObject.getClass().isArray()) {
-                return Collections.singletonList(fieldObject.getClass().getComponentType());
+                result.add(fieldObject.getClass().getComponentType());
+                return result;
             }
-            
+
             // Collections and maps
             List<Object> objectList = new ArrayList<>();
             BundleService.getInstance().addItemsToList(fieldObject, objectList);
-            
-            // Iterate objects and find out it types, then choose the most generic
-            Class<?> result = null;
+
+            // Iterate objects and find out their types, then choose the most generic
+            Class<?> clazz = null;
             for (Object object : objectList) {
-                result = ClassService.getInstance().findCommonClassType(object.getClass(), result);
+                clazz = ClassService.getInstance().findCommonClassType(object.getClass(), clazz);
             }
-            return Collections.singletonList(result);
+            result.add(clazz);
+            return result;
         }
-        if (field != null) {
-            return findArrayOrParameterizedTypeClasses(field);
-        }
-        // Other objects
-        throw new AppRuntimeException("The field '" + field + "' is not Array nor ParameterizedType");
+        return findArrayOrParameterizedTypeClasses(field);
     }
 
     /**
